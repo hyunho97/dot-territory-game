@@ -204,6 +204,19 @@ export const dungeonData = load<{
   levelScalePerLevel: number;
   milestones: { speedupEvery: number; speedupMinPerStep: number; equipmentEvery: number };
 }>('dungeon.json');
+export const guildData = load<{
+  minTerritoryLevel: number;
+  createCost: Record<string, number>;
+  nameLength: { min: number; max: number };
+  noticeMaxLength: number;
+  baseMembers: number;
+  membersPerLevel: number;
+  levelExp: number[];
+  expPerValue: number;
+  dailyDonateValueLimit: number;
+  buffPerLevel: { production: number; combat: number };
+  listLimit: number;
+}>('guild.json');
 export const marketData = load<{
   values: Record<string, number>;
   baseFee: number;

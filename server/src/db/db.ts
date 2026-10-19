@@ -20,6 +20,21 @@ CREATE TABLE IF NOT EXISTS dungeon_progress (
   best_floor INTEGER NOT NULL DEFAULT 0,
   day INTEGER NOT NULL DEFAULT 0, entries_used INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS guilds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, server_id INTEGER NOT NULL,
+  name TEXT NOT NULL, leader_id INTEGER NOT NULL REFERENCES characters(id),
+  exp INTEGER NOT NULL DEFAULT 0, notice TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
+  UNIQUE (server_id, name)
+);
+CREATE TABLE IF NOT EXISTS guild_members (
+  character_id INTEGER PRIMARY KEY REFERENCES characters(id),
+  guild_id INTEGER NOT NULL REFERENCES guilds(id),
+  joined_at INTEGER NOT NULL, contribution INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS guild_donations (
+  character_id INTEGER NOT NULL REFERENCES characters(id), day INTEGER NOT NULL,
+  value REAL NOT NULL DEFAULT 0, PRIMARY KEY (character_id, day)
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
   created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL

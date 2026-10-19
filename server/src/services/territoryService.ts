@@ -1,7 +1,7 @@
 import { db, transaction } from '../db/db.js';
 import { buildings, exploration, gameConfig, races, territoryLevels, units } from '../data.js';
 import { rollGrade, rollPower } from './equipmentRoll.js';
-import { researchBonus } from './bonuses.js';
+import { guildBonus, researchBonus } from './bonuses.js';
 import { grantRandomEquipment } from './equipmentGrant.js';
 import { addSpeedup } from './speedupGrant.js';
 import { rollExpeditionEvent } from './exploreEvents.js';
@@ -159,7 +159,9 @@ export function settle(characterId: number, now = Date.now()): void {
     ).territory_level;
     const blds = loadBuildings(characterId);
     const cap = storageCap(lvl, blds, now);
-    const gain = raceMods(ch.race).resourceGain * (1 + researchBonus(characterId, 'production'));
+    const gain =
+      raceMods(ch.race).resourceGain *
+      (1 + researchBonus(characterId, 'production') + guildBonus(characterId, 'production'));
     const values: Record<string, number> = {};
     for (const r of RESOURCES) values[r] = res[r];
 

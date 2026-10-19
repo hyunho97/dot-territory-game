@@ -235,6 +235,45 @@ export interface DungeonRun {
   survivors: { unitId: string; count: number }[];
   state: DungeonState;
 }
+export interface GuildMember {
+  characterId: number;
+  owner: string;
+  territoryName: string;
+  level: number;
+  contribution: number;
+  isLeader: boolean;
+}
+export interface GuildState {
+  serverNow: number;
+  minLevel: number;
+  locked: boolean;
+  createCost: Record<string, number>;
+  nameLength: { min: number; max: number };
+  noticeMaxLength: number;
+  donate: { limit: number; used: number; values: Record<string, number>; expPerValue: number };
+  guild: {
+    id: number;
+    name: string;
+    level: number;
+    maxLevel: number;
+    exp: number;
+    nextExp: number | null;
+    notice: string;
+    memberCount: number;
+    maxMembers: number;
+    isLeader: boolean;
+    buff: { production: number; combat: number };
+    members: GuildMember[];
+  } | null;
+}
+export interface GuildListItem {
+  id: number;
+  name: string;
+  level: number;
+  leader: string;
+  members: number;
+  maxMembers: number;
+}
 export interface MarketState {
   serverNow: number;
   hasMarket: boolean;
@@ -432,6 +471,42 @@ export const api = {
     request<DungeonRun>('/api/dungeon/run', {
       method: 'POST',
       body: JSON.stringify({ server, units, stopAt }),
+    }),
+  guild: (server: number) => request<GuildState>(`/api/guild?server=${server}`),
+  guildList: (server: number) => request<GuildListItem[]>(`/api/guild/list?server=${server}`),
+  guildCreate: (server: number, name: string) =>
+    request<GuildState>('/api/guild/create', {
+      method: 'POST',
+      body: JSON.stringify({ server, name }),
+    }),
+  guildJoin: (server: number, guildId: number) =>
+    request<GuildState>('/api/guild/join', {
+      method: 'POST',
+      body: JSON.stringify({ server, guildId }),
+    }),
+  guildLeave: (server: number) =>
+    request<GuildState>('/api/guild/leave', { method: 'POST', body: JSON.stringify({ server }) }),
+  guildDisband: (server: number) =>
+    request<GuildState>('/api/guild/disband', { method: 'POST', body: JSON.stringify({ server }) }),
+  guildKick: (server: number, targetId: number) =>
+    request<GuildState>('/api/guild/kick', {
+      method: 'POST',
+      body: JSON.stringify({ server, targetId }),
+    }),
+  guildTransfer: (server: number, targetId: number) =>
+    request<GuildState>('/api/guild/transfer', {
+      method: 'POST',
+      body: JSON.stringify({ server, targetId }),
+    }),
+  guildNotice: (server: number, notice: string) =>
+    request<GuildState>('/api/guild/notice', {
+      method: 'POST',
+      body: JSON.stringify({ server, notice }),
+    }),
+  guildDonate: (server: number, resource: string, amount: number) =>
+    request<{ result: { exp: number }; guild: GuildState }>('/api/guild/donate', {
+      method: 'POST',
+      body: JSON.stringify({ server, resource, amount }),
     }),
   market: (server: number) => request<MarketState>(`/api/market?server=${server}`),
   exchange: (server: number, from: string, to: string, amount: number) =>

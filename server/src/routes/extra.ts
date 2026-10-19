@@ -7,6 +7,18 @@ import { ranking } from '../services/rankingService.js';
 import type { RankType } from '../services/rankingService.js';
 import { researchState, startResearch } from '../services/researchService.js';
 import { dungeonState, runDungeon } from '../services/dungeonService.js';
+import {
+  createGuild,
+  disbandGuild,
+  donate,
+  guildList,
+  guildState,
+  joinGuild,
+  kickMember,
+  leaveGuild,
+  setNotice,
+  transferLeader,
+} from '../services/guildService.js';
 import { enterSession } from '../services/sessionService.js';
 import { useSpeedup } from '../services/speedupService.js';
 import type { SpeedupTarget } from '../services/speedupService.js';
@@ -57,6 +69,49 @@ export function registerExtraRoutes(app: FastifyInstance, h: Helpers): void {
     const result = runDungeon(cid, units, Number(body.stopAt));
     if (result.cleared > 0) recordEvent(cid, 'dungeon');
     return result;
+  });
+
+  app.get('/api/guild', async (req) => guildState(cidFromQuery(req)));
+  app.get('/api/guild/list', async (req) => guildList(cidFromQuery(req)));
+  app.post('/api/guild/create', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    createGuild(cid, body.name);
+    return guildState(cid);
+  });
+  app.post('/api/guild/join', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    joinGuild(cid, Number(body.guildId));
+    return guildState(cid);
+  });
+  app.post('/api/guild/leave', async (req) => {
+    const { cid } = cidFromBody(req);
+    leaveGuild(cid);
+    return guildState(cid);
+  });
+  app.post('/api/guild/kick', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    kickMember(cid, Number(body.targetId));
+    return guildState(cid);
+  });
+  app.post('/api/guild/transfer', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    transferLeader(cid, Number(body.targetId));
+    return guildState(cid);
+  });
+  app.post('/api/guild/disband', async (req) => {
+    const { cid } = cidFromBody(req);
+    disbandGuild(cid);
+    return guildState(cid);
+  });
+  app.post('/api/guild/notice', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    setNotice(cid, body.notice);
+    return guildState(cid);
+  });
+  app.post('/api/guild/donate', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    const result = donate(cid, String(body.resource ?? ''), Number(body.amount));
+    return { result, guild: guildState(cid) };
   });
 
   app.get('/api/market', async (req) => marketState(cidFromQuery(req)));

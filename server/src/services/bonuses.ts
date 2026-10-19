@@ -1,5 +1,6 @@
 import { db } from '../db/db.js';
 import { researchData } from '../data.js';
+import { guildBuff, guildLevel } from './guildRules.js';
 
 /** 하위(leaf) 모듈: DB/데이터만 의존 — 다른 서비스가 안전하게 가져다 쓸 수 있다. */
 
@@ -30,7 +31,21 @@ export function equipPct(characterId: number): number {
   return row.p;
 }
 
-/** 전투력 배수 = (1 + 장비 보정) × (1 + 연구 '전술' 보정) */
+/** 소속 길드의 레벨 버프 (길드가 없으면 0). 길드 경험치는 guild_members → guilds 로 조회한다. */
+export function guildBonus(characterId: number, kind: 'production' | 'combat'): number {
+  const row = db
+    .prepare(
+      'SELECT g.exp AS exp FROM guild_members m JOIN guilds g ON g.id = m.guild_id WHERE m.character_id = ?',
+    )
+    .get(characterId) as { exp: number } | undefined;
+  return row ? guildBuff(guildLevel(row.exp))[kind] : 0;
+}
+
+/** 전투력 배수 = (1 + 장비 보정) × (1 + 연구 '전술' 보정) × (1 + 길드 버프) */
 export function combatMultiplier(characterId: number): number {
-  return (1 + equipPct(characterId) / 100) * (1 + researchBonus(characterId, 'combat'));
+  return (
+    (1 + equipPct(characterId) / 100) *
+    (1 + researchBonus(characterId, 'combat')) *
+    (1 + guildBonus(characterId, 'combat'))
+  );
 }
