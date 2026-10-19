@@ -29,6 +29,8 @@ TYPE_MAP = {
     "smithy": "smithy",
     "house": "house",
     "warehouse": "warehouse",
+    "market": "market",
+    "lab": "lab",
 }
 RACES = {"human", "elf", "dwarf", "undead", "orc"}
 
@@ -37,8 +39,10 @@ def main() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     sprites = manifest.setdefault("sprites", {})
     seen = set()
-    for f in sorted(SRC.glob("*_buildings_*/**/building_*.png")):
-        race = f.relative_to(SRC).parts[0].split("_")[0]
+    for f in sorted(SRC.glob("*/**/building_*.png")):
+        parts = f.relative_to(SRC).parts
+        # 종족은 폴더 이름(…/buildings/<race>/…) 또는 최상위 폴더 접두어(<race>_buildings_…)에서 찾는다
+        race = next((p for p in parts[:-1] if p in RACES), parts[0].split("_")[0])
         m = re.match(r"building_([a-z]+)_(\d+)$", f.stem)
         if race not in RACES or not m:
             print(f"건너뜀: {f}")
@@ -57,6 +61,13 @@ def main() -> None:
         shutil.copy(f, out)
         sprites[key] = f"sprites/buildings/{race}/{out.name}"
         print(f"{f.parent.name}/{f.name} -> {key}")
+    # 건물 폴더에 함께 들어 있는 유닛 이미지(units/<id>.png) -> assets/sprites/units/
+    unit_dst = ROOT / "assets" / "sprites" / "units"
+    for f in sorted(SRC.glob("*/units/*.png")):
+        unit_dst.mkdir(parents=True, exist_ok=True)
+        shutil.copy(f, unit_dst / f.name)
+        sprites[f"units/{f.stem}"] = f"sprites/units/{f.name}"
+        print(f"유닛: {f.name}")
     MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
