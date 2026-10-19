@@ -65,6 +65,18 @@ export function describeEvent(ev: GameEvent): string {
         });
       return t('event.raidDraw', { raider, lost: p.lost });
     }
+    case 'guildBossDone': {
+      const reward = resList(p.reward as Record<string, number>);
+      const extra = p.speedupMin ? `, ${t('quest.speedup', { n: p.speedupMin })}` : '';
+      const eq = (p.equipment as unknown as { type: string; grade: string }[]) ?? [];
+      const eqText = eq.length ? `, ${eq.map(equipName).join(', ')}` : '';
+      return t(p.won ? 'event.guildBossWon' : 'event.guildBossLost', {
+        name: t(`boss.name.${p.tier}`),
+        rank: p.rank,
+        dmg: p.damage,
+        reward: reward + extra + eqText,
+      });
+    }
     case 'dungeonDone':
       return t('event.dungeonDone', { n: p.cleared });
     case 'battleDone':

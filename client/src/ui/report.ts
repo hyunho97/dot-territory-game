@@ -21,6 +21,7 @@ export function openReportModal(report: OfflineReport): void {
     // 개별로 보여 줄 중요한 일
     const special =
       ev.key === 'raid' ||
+      ev.key === 'guildBossDone' ||
       ev.key === 'pvpDefended' ||
       ev.key === 'levelUp' ||
       (ev.key === 'expeditionDone' && (ev.params as { event?: string }).event);

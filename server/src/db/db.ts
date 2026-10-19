@@ -35,6 +35,19 @@ CREATE TABLE IF NOT EXISTS guild_donations (
   character_id INTEGER NOT NULL REFERENCES characters(id), day INTEGER NOT NULL,
   value REAL NOT NULL DEFAULT 0, PRIMARY KEY (character_id, day)
 );
+CREATE TABLE IF NOT EXISTS guild_boss (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, guild_id INTEGER NOT NULL REFERENCES guilds(id),
+  tier TEXT NOT NULL, hp_max INTEGER NOT NULL, hp INTEGER NOT NULL,
+  started_at INTEGER NOT NULL, ends_at INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active', finished_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS guild_boss_part (
+  boss_id INTEGER NOT NULL REFERENCES guild_boss(id),
+  character_id INTEGER NOT NULL REFERENCES characters(id),
+  damage INTEGER NOT NULL DEFAULT 0, attacks INTEGER NOT NULL DEFAULT 0,
+  day INTEGER NOT NULL DEFAULT 0, day_attacks INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (boss_id, character_id)
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
   created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL

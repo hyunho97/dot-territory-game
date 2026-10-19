@@ -1,0 +1,38 @@
+{
+  "durationHours": 72,
+  "summonCooldownHours": 24,
+  "ticketsPerDay": 2,
+  "hpMultiplier": 3,
+  "lossRatio": 0.05,
+  "damageJitter": [0.85, 1.15],
+  "lostRewardRatio": 0.3,
+  "tiers": [
+    {
+      "id": "troll",
+      "minGuildLevel": 1,
+      "hpFloor": 20000,
+      "reward": { "gold": 1500, "iron": 600, "food": 2500 },
+      "speedupMin": 30,
+      "guildExp": 1500,
+      "topEquipment": 1
+    },
+    {
+      "id": "giant",
+      "minGuildLevel": 4,
+      "hpFloor": 200000,
+      "reward": { "gold": 3500, "iron": 1500, "food": 6000 },
+      "speedupMin": 60,
+      "guildExp": 4000,
+      "topEquipment": 1
+    },
+    {
+      "id": "dragon",
+      "minGuildLevel": 7,
+      "hpFloor": 2000000,
+      "reward": { "gold": 9000, "iron": 4000, "food": 15000 },
+      "speedupMin": 120,
+      "guildExp": 10000,
+      "topEquipment": 2
+    }
+  ]
+}

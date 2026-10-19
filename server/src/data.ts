@@ -217,6 +217,24 @@ export const guildData = load<{
   buffPerLevel: { production: number; combat: number };
   listLimit: number;
 }>('guild.json');
+export const guildBossData = load<{
+  durationHours: number;
+  summonCooldownHours: number;
+  ticketsPerDay: number;
+  hpMultiplier: number;
+  lossRatio: number;
+  damageJitter: [number, number];
+  lostRewardRatio: number;
+  tiers: {
+    id: string;
+    minGuildLevel: number;
+    hpFloor: number;
+    reward: Record<string, number>;
+    speedupMin: number;
+    guildExp: number;
+    topEquipment: number;
+  }[];
+}>('guild_boss.json');
 export const marketData = load<{
   values: Record<string, number>;
   baseFee: number;

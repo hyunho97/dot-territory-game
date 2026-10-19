@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { GuildListItem, GuildState } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { guildBossSection } from './guildBoss';
 import { RES_COLORS, costEl, errMsg, openModal } from './panels';
 import type { PanelCtx } from './panels';
 
@@ -116,6 +117,8 @@ export function openGuildPanel(ctx: PanelCtx): void {
         ),
       ),
     );
+
+    out.push(guildBossSection(ctx));
 
     // 공지
     const notice = h('div', { class: 'muted' });

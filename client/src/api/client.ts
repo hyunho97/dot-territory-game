@@ -276,6 +276,25 @@ export interface GuildListItem {
   members: number;
   maxMembers: number;
 }
+export interface GuildBossState {
+  serverNow: number;
+  isLeader: boolean;
+  ticketsPerDay: number;
+  lossRatio: number;
+  summonTier: string;
+  summonCooldownUntil: number;
+  canSummon: boolean;
+  active: {
+    tier: string;
+    hp: number;
+    hpMax: number;
+    endsAt: number;
+    ticketsLeft: number;
+    myDamage: number;
+    ranking: { owner: string; damage: number; attacks: number; isMe: boolean }[];
+  } | null;
+  last: { tier: string; won: boolean; finishedAt: number | null; hpMax: number } | null;
+}
 export interface MarketState {
   serverNow: number;
   hasMarket: boolean;
@@ -475,6 +494,17 @@ export const api = {
       body: JSON.stringify({ server, units, stopAt }),
     }),
   guild: (server: number) => request<GuildState>(`/api/guild?server=${server}`),
+  guildBoss: (server: number) => request<GuildBossState>(`/api/guild/boss?server=${server}`),
+  guildBossSummon: (server: number) =>
+    request<GuildBossState>('/api/guild/boss/summon', {
+      method: 'POST',
+      body: JSON.stringify({ server }),
+    }),
+  guildBossAttack: (server: number, units: Record<string, number>) =>
+    request<{ damage: number; lost: number; killed: boolean; state: GuildBossState }>(
+      '/api/guild/boss/attack',
+      { method: 'POST', body: JSON.stringify({ server, units }) },
+    ),
   guildList: (server: number) => request<GuildListItem[]>(`/api/guild/list?server=${server}`),
   guildCreate: (server: number, name: string) =>
     request<GuildState>('/api/guild/create', {

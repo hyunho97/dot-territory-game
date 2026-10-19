@@ -7,6 +7,7 @@ import { ranking } from '../services/rankingService.js';
 import type { RankType } from '../services/rankingService.js';
 import { researchState, startResearch } from '../services/researchService.js';
 import { dungeonState, runDungeon } from '../services/dungeonService.js';
+import { attackBoss, bossState, summonBoss } from '../services/guildBossService.js';
 import {
   createGuild,
   disbandGuild,
@@ -112,6 +113,17 @@ export function registerExtraRoutes(app: FastifyInstance, h: Helpers): void {
     const { cid, body } = cidFromBody(req);
     const result = donate(cid, String(body.resource ?? ''), Number(body.amount));
     return { result, guild: guildState(cid) };
+  });
+
+  app.get('/api/guild/boss', async (req) => bossState(cidFromQuery(req)));
+  app.post('/api/guild/boss/summon', async (req) => {
+    const { cid } = cidFromBody(req);
+    summonBoss(cid);
+    return bossState(cid);
+  });
+  app.post('/api/guild/boss/attack', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    return attackBoss(cid, (body.units ?? {}) as Record<string, number>);
   });
 
   app.get('/api/market', async (req) => marketState(cidFromQuery(req)));
