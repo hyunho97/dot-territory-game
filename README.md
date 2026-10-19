@@ -66,3 +66,12 @@ tools/         process_sprites.py
 - **랭킹**: 같은 서버 전투력/영지 레벨 순위
 - **가속**: 퀘스트/출석 보상으로 받는 "가속(분)" 을 보유하고, 영지 레벨업·건물 건설/업그레이드·연구 타이머에 10분/1시간/전부 단위로 사용. 서버가 남은 시간만큼만 차감 (`POST /api/speedup`). 추후 과금/이벤트 지급 연결 지점
   - 획득 경로: 튜토리얼/출석/일일 완주 보너스, PvE 스테이지 **첫 클리어**(5~60분, `data/pve.json`), NPC 침공 방어 승리(10분, `data/raids.json`), 탐험 랜덤 이벤트 '가속 발견'(5~15분, `data/exploration.json`)
+
+## 로컬 실행·배포 준비 (무료 기반)
+
+- 개발: `npm run dev` (서버 3001 + 클라이언트 5173). 환경 변수는 `.env.example` 참고, 기본값 그대로 쓰면 된다.
+- 한 프로세스로 실행: `npm run start:prod` — 클라이언트를 빌드하고 서버가 함께 서빙 (`SERVE_CLIENT=1`, `HOST=0.0.0.0`, 포트 3001).
+- 상태 확인: `GET /api/health`. 보안 헤더(nosniff, X-Frame-Options, Referrer-Policy)를 기본 적용, HTTPS 프록시 뒤(`TRUST_PROXY=1`)에서는 HSTS 도 적용.
+- 백업: `npm run backup` → `server/backups/` 에 DB 스냅샷 (최근 10개 유지, 서버가 켜진 상태에서도 안전).
+- 요청 크기 100KB 제한, 가입은 IP 당 시간당 10건, 로그인 실패 5회 시 10분 차단 (메모리 기반, 재시작 시 초기화).
+- 공개할 때 필요한 것: HTTPS 와 영구 디스크(SQLite). 무료로 시험하려면 Cloudflare Tunnel 같은 터널로 내 PC 를 잠시 공개하는 방법이 있다. 배포는 아직 하지 않았다.

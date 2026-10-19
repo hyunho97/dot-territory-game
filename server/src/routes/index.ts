@@ -54,6 +54,7 @@ export function registerRoutes(app: FastifyInstance): void {
 
   // ── ID/비밀번호 계정 ──
   const loginLimiter = new FailLimiter(5, 10 * 60_000);
+  const registerLimiter = new FailLimiter(10, 60 * 60_000); // IP 당 시간당 가입 수
   const newSession = (userId: number): string => {
     const token = randomBytes(32).toString('hex');
     const now = Date.now();
@@ -65,6 +66,7 @@ export function registerRoutes(app: FastifyInstance): void {
   };
 
   app.post('/api/auth/register', async (req) => {
+    if (registerLimiter.blocked(req.ip)) throw new GameError('TOO_MANY_ATTEMPTS', 429);
     const body = (req.body ?? {}) as Record<string, unknown>;
     const loginId = normalizeLoginId(body.loginId);
     if (!loginId) throw new GameError('INVALID_LOGIN_ID');
@@ -78,6 +80,7 @@ export function registerRoutes(app: FastifyInstance): void {
     if (db.prepare('SELECT 1 FROM users WHERE nickname = ?').get(nick))
       throw new GameError('NICKNAME_TAKEN', 409);
     const { salt, hash } = hashPassword(body.password);
+    registerLimiter.fail(req.ip); // 성공한 가입도 횟수에 포함
     const info = db
       .prepare(
         'INSERT INTO users (nickname, token, login_id, pw_hash, pw_salt, created_at) VALUES (?,?,?,?,?,?)',
