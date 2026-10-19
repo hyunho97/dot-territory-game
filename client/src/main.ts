@@ -11,6 +11,7 @@ import { openBarracksPanel } from './ui/barracks';
 import { openBattlePanel } from './ui/battle';
 import { openMarketPanel } from './ui/market';
 import { openQuestPanel, hasClaimable } from './ui/quests';
+import { openDungeonPanel } from './ui/dungeon';
 import { openRankingPanel } from './ui/ranking';
 import { openReportModal } from './ui/report';
 import { openResearchPanel } from './ui/research';
@@ -110,6 +111,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       actionBtn(t('territory.tabBattle'), () => openBattlePanel(ctx)),
       actionBtn(t('territory.tabExplore'), () => openExplorePanel(ctx)),
       actionBtn(t('territory.tabMarket'), () => openMarketPanel(ctx)),
+      actionBtn(t('territory.tabDungeon'), () => openDungeonPanel(ctx)),
       actionBtn(t('territory.tabResearch'), () => openResearchPanel(ctx)),
       actionBtn(t('territory.tabRanking'), () => openRankingPanel(ctx)),
       h(

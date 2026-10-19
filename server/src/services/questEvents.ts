@@ -14,7 +14,8 @@ export type EventType =
   | 'craft'
   | 'equip'
   | 'exchange'
-  | 'research';
+  | 'research'
+  | 'dungeon';
 
 /** 일일 퀘스트 기준일 키 (data/quests.json 의 dayOffsetHours 시간대의 자정에 갱신) */
 export function dayKey(now = Date.now()): number {

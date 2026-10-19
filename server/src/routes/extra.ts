@@ -6,6 +6,7 @@ import { recordEvent } from '../services/questEvents.js';
 import { ranking } from '../services/rankingService.js';
 import type { RankType } from '../services/rankingService.js';
 import { researchState, startResearch } from '../services/researchService.js';
+import { dungeonState, runDungeon } from '../services/dungeonService.js';
 import { enterSession } from '../services/sessionService.js';
 import { useSpeedup } from '../services/speedupService.js';
 import type { SpeedupTarget } from '../services/speedupService.js';
@@ -47,6 +48,15 @@ export function registerExtraRoutes(app: FastifyInstance, h: Helpers): void {
     if (!['levelup', 'building', 'research'].includes(target))
       throw new GameError('INVALID_TARGET');
     return useSpeedup(cid, target, Number(body.seconds), Number(body.buildingId));
+  });
+
+  app.get('/api/dungeon', async (req) => dungeonState(cidFromQuery(req)));
+  app.post('/api/dungeon/run', async (req) => {
+    const { cid, body } = cidFromBody(req);
+    const units = (body.units ?? {}) as Record<string, number>;
+    const result = runDungeon(cid, units, Number(body.stopAt));
+    if (result.cleared > 0) recordEvent(cid, 'dungeon');
+    return result;
   });
 
   app.get('/api/market', async (req) => marketState(cidFromQuery(req)));

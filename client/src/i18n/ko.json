@@ -175,6 +175,7 @@
     "tabQuest": "퀘스트",
     "tabMarket": "교역",
     "tabResearch": "연구",
+    "tabDungeon": "던전",
     "tabRanking": "랭킹"
   },
   "error": {
@@ -241,6 +242,9 @@
     "NO_SPEEDUP": "보유한 가속이 없습니다.",
     "NOTHING_TO_SPEEDUP": "가속할 진행 중인 작업이 없습니다.",
     "NOT_FOUND": "대상을 찾을 수 없습니다.",
+    "DUNGEON_LOCKED": "아직 던전에 입장할 수 없습니다.",
+    "DUNGEON_NO_ENTRY": "오늘 던전 입장 횟수를 모두 사용했습니다.",
+    "INVALID_FLOOR": "목표 층이 올바르지 않습니다.",
     "NO_LAB": "연구소가 필요합니다.",
     "INVALID_TECH": "존재하지 않는 연구입니다.",
     "TECH_LOCKED": "영지 레벨이 부족합니다.",
@@ -464,6 +468,25 @@
     "use60": "1시간 단축",
     "all": "전부 사용"
   },
+  "dungeon": {
+    "heading": "던전",
+    "locked": "영지 Lv.{n} 부터 입장할 수 있습니다.",
+    "desc": "병력을 보내면 1층부터 자동으로 전투를 이어갑니다. 층마다 손실이 쌓이고, 질 때까지 또는 목표 층까지 진행합니다.",
+    "best": "최고 기록 {n}층 / {max}층",
+    "entries": "오늘 입장 {n}/{max}",
+    "next": "다음 층",
+    "floor": "{n}층",
+    "milestone": "처음 도달하는 층 보상: {every}층마다 가속(층당 {min}분 × 단계), {equip}층마다 장비 1개",
+    "troops": "출전 병력",
+    "stopAt": "목표 층",
+    "enter": "입장",
+    "resultTitle": "{n}층 클리어 — {reason}",
+    "reason": { "stop": "목표 도달", "defeat": "패배", "max": "최상층 도달" },
+    "newBest": "새 최고 기록! {n}층",
+    "floorLog": "층별 결과",
+    "lost": "손실 {n}",
+    "invFull": "장비 보관함이 가득 차 장비 보상은 받지 못했습니다."
+  },
   "quest": {
     "heading": "퀘스트",
     "tabTutorial": "튜토리얼",
@@ -535,6 +558,7 @@
     "buildingUpgraded": "업그레이드 완료: {name} Lv.{level}",
     "levelUp": "영지가 Lv.{level}(으)로 성장했습니다!",
     "researchDone": "연구 완료: {tech} Lv.{level}",
+    "dungeonDone": "던전 {n}층까지 클리어했습니다.",
     "raidPlayer": "침공군({raider})을 물리쳤습니다! 보상: {reward} (병력 손실 {lost})",
     "raidRaiders": "침공군({raider})에게 패배! 병력 {lost}명 손실, 약탈: {plunder}",
     "raidDraw": "침공군({raider})과 비겼습니다. (병력 손실 {lost})"

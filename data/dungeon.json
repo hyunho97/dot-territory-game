@@ -1,0 +1,24 @@
+{
+  "minTerritoryLevel": 3,
+  "dailyEntries": 3,
+  "maxFloors": 50,
+  "baseCP": 50,
+  "cpGrowth": 1.16,
+  "enemyByFloor": [
+    { "fromFloor": 1, "unitId": "undead_skeleton" },
+    { "fromFloor": 6, "unitId": "orc_grunt" },
+    { "fromFloor": 12, "unitId": "orc_warrior" },
+    { "fromFloor": 18, "unitId": "orc_thrower" },
+    { "fromFloor": 26, "unitId": "orc_warlord" },
+    { "fromFloor": 34, "unitId": "undead_lich" },
+    { "fromFloor": 42, "unitId": "human_dragon" }
+  ],
+  "floorReward": { "gold": 20, "food": 30, "iron": 8 },
+  "rewardGrowthPerFloor": 0.15,
+  "levelScalePerLevel": 0.1,
+  "milestones": {
+    "speedupEvery": 5,
+    "speedupMinPerStep": 15,
+    "equipmentEvery": 10
+  }
+}

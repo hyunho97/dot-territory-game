@@ -192,6 +192,18 @@ export const raidsData = load<{
   /** 침공 방어 승리 시 가속(분) */
   winSpeedupMin: number;
 }>('raids.json');
+export const dungeonData = load<{
+  minTerritoryLevel: number;
+  dailyEntries: number;
+  maxFloors: number;
+  baseCP: number;
+  cpGrowth: number;
+  enemyByFloor: { fromFloor: number; unitId: string }[];
+  floorReward: Record<string, number>;
+  rewardGrowthPerFloor: number;
+  levelScalePerLevel: number;
+  milestones: { speedupEvery: number; speedupMinPerStep: number; equipmentEvery: number };
+}>('dungeon.json');
 export const marketData = load<{
   values: Record<string, number>;
   baseFee: number;

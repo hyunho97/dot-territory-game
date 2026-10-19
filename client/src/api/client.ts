@@ -199,6 +199,42 @@ export interface OfflineReport {
   resourceDelta: Record<string, number>;
   events: { key: string; params: Record<string, unknown>; at: number }[];
 }
+export interface DungeonState {
+  serverNow: number;
+  resetAt: number;
+  minLevel: number;
+  locked: boolean;
+  bestFloor: number;
+  maxFloors: number;
+  entriesLeft: number;
+  maxEntries: number;
+  preview: {
+    floor: number;
+    enemyCP: number;
+    enemyUnitId: string;
+    reward: Record<string, number>;
+  }[];
+  milestones: { speedupEvery: number; speedupMinPerStep: number; equipmentEvery: number };
+}
+export interface DungeonRun {
+  floors: {
+    floor: number;
+    enemyCP: number;
+    myCP: number;
+    winner: 'A' | 'B' | 'draw';
+    lost: number;
+  }[];
+  cleared: number;
+  reason: 'stop' | 'defeat' | 'max';
+  newBest: boolean;
+  bestFloor: number;
+  resources: Record<string, number>;
+  speedupMin: number;
+  equipment: { type: string; grade: string; power: number }[];
+  equipmentSkipped: boolean;
+  survivors: { unitId: string; count: number }[];
+  state: DungeonState;
+}
 export interface MarketState {
   serverNow: number;
   hasMarket: boolean;
@@ -390,6 +426,12 @@ export const api = {
     request<{ summary: GrantSummary; quests: QuestsState }>('/api/attendance/claim', {
       method: 'POST',
       body: JSON.stringify({ server }),
+    }),
+  dungeon: (server: number) => request<DungeonState>(`/api/dungeon?server=${server}`),
+  dungeonRun: (server: number, units: Record<string, number>, stopAt: number) =>
+    request<DungeonRun>('/api/dungeon/run', {
+      method: 'POST',
+      body: JSON.stringify({ server, units, stopAt }),
     }),
   market: (server: number) => request<MarketState>(`/api/market?server=${server}`),
   exchange: (server: number, from: string, to: string, amount: number) =>

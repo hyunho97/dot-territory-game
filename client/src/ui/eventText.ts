@@ -65,6 +65,8 @@ export function describeEvent(ev: GameEvent): string {
         });
       return t('event.raidDraw', { raider, lost: p.lost });
     }
+    case 'dungeonDone':
+      return t('event.dungeonDone', { n: p.cleared });
     case 'battleDone':
       return t('battle.logBattle', {
         result: t(`battle.result.${p.winner === 'A' ? 'win' : p.winner === 'B' ? 'lose' : 'draw'}`),
