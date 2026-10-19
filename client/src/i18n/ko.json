@@ -417,6 +417,7 @@
   "equip": {
     "heading": "대장간 — 장비 제작",
     "bonus": "장비 보정 +{n}%",
+    "craftDone": "제작 완료! {name}",
     "inventory": "보관 {n}/{max}",
     "slots": "제작 큐 {n}/{max}",
     "noSmithy": "대장간이 필요합니다. 영지 Lv.3에서 건설할 수 있습니다.",

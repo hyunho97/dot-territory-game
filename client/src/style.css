@@ -699,3 +699,41 @@ select.input {
 .detail h2 .icon {
   margin-right: 2px;
 }
+
+.craft-fx {
+  position: fixed;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  text-align: center;
+  pointer-events: none;
+  animation: craft-pop 1.8s ease-out forwards;
+}
+.craft-fx .icon {
+  mix-blend-mode: screen;
+}
+.craft-fx-text {
+  margin-top: 8px;
+  color: var(--gold);
+  text-shadow: 2px 2px 0 #000;
+  font-size: 18px;
+}
+@keyframes craft-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(1);
+  }
+}

@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { EquipmentState, EquipItem } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { costEl, errMsg, fmtDuration, openModal, once } from './panels';
 import type { PanelCtx } from './panels';
 
@@ -203,7 +204,16 @@ export function openSmithyPanel(ctx: PanelCtx): void {
   body.replaceChildren(h('div', { class: 'muted' }, t('common.loading')));
   const load = async () => {
     try {
-      state = await api.equipment(serverId);
+      const before = new Set((state?.items ?? []).map((i) => i.id));
+      const next = await api.equipment(serverId);
+      // 패널을 연 채로 제작이 끝나면 새로 생긴 장비로 완료 연출을 보여 준다
+      const fresh = state ? next.items.find((i) => !before.has(i.id)) : undefined;
+      state = next;
+      if (fresh)
+        playCraftFx(
+          ctx,
+          `${t(`equip.grade.${fresh.grade}`)} ${t(`equip.type.${fresh.type}`)} (+${fresh.power}%)`,
+        );
       offset = state.serverNow - Date.now();
     } catch (e) {
       err.textContent = errMsg(e);
@@ -225,4 +235,17 @@ export function openSmithyPanel(ctx: PanelCtx): void {
     });
     if (finished) tick();
   }, 1000);
+}
+
+/** 제작 완료 연출: 이펙트 이미지가 커지며 사라지고, 완성품 이름을 잠시 보여 준다 */
+function playCraftFx(ctx: PanelCtx, label: string): void {
+  const fx = iconEl('fx/craft_complete', 128, ctx.manifest);
+  const box = h(
+    'div',
+    { class: 'craft-fx' },
+    fx ?? '',
+    h('div', { class: 'craft-fx-text' }, t('equip.craftDone', { name: label })),
+  );
+  document.body.append(box);
+  window.setTimeout(() => box.remove(), 1800);
 }
