@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { GuildBossState } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { errMsg, fmtDuration, once } from './panels';
 import type { PanelCtx } from './panels';
 
@@ -74,7 +75,12 @@ export function guildBossSection(ctx: PanelCtx): HTMLElement {
         if (a.endsAt <= st.serverNow + (Date.now() - loadedAt)) refreshOnce();
       }, 1000);
       kids.push(
-        h('div', {}, h('strong', {}, t(`boss.name.${a.tier}`)), cd),
+        h(
+          'div',
+          { class: 'row', style: 'justify-content:flex-start;gap:10px' },
+          iconEl(`boss/${a.tier}`, 96, ctx.manifest) ?? '',
+          h('div', {}, h('strong', {}, t(`boss.name.${a.tier}`)), cd),
+        ),
         h(
           'div',
           {
@@ -148,6 +154,11 @@ export function guildBossSection(ctx: PanelCtx): HTMLElement {
     } else {
       if (st.last)
         kids.push(
+          iconEl(
+            st.last.won ? 'events/result_boss_win' : 'events/result_boss_lose',
+            64,
+            ctx.manifest,
+          ) ?? '',
           h(
             'div',
             { class: st.last.won ? 'pro' : 'con' },

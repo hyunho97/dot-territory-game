@@ -25,7 +25,18 @@ const GRADE_ORDER = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
 /** 장비 아이콘: 에셋 매니페스트(equip/<type>)가 있으면 이미지, 없으면 등급 색 플레이스홀더 */
 function icon(ctx: PanelCtx, type: string, grade: string): HTMLElement {
   const path = ctx.manifest[`equip/${type}`];
-  if (path) return h('img', { class: 'eq-icon', src: `/${path}`, alt: type });
+  if (path) {
+    const img = h('img', { class: 'eq-icon', src: `/${path}`, alt: type });
+    const frame = ctx.manifest[`equip/frame_${grade}`];
+    if (!frame) return img;
+    // 등급 테두리를 아이콘 위에 겹쳐 그린다
+    return h(
+      'span',
+      { class: 'eq-wrap' },
+      img,
+      h('img', { class: 'eq-frame', src: `/${frame}`, alt: '' }),
+    );
+  }
   return h(
     'div',
     {

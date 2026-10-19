@@ -11,7 +11,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { armyCP, createRng, resolveBattle } from '../server/src/services/battle.js';
 import type { Army } from '../server/src/services/battle.js';
-import { floorEnemyCP, floorEnemyUnitId, floorReward } from '../server/src/services/dungeonRules.js';
+import {
+  floorEnemyCP,
+  floorEnemyUnitId,
+  floorReward,
+} from '../server/src/services/dungeonRules.js';
 import { battleConfig, dungeonData, marketData, races, units } from '../server/src/data.js';
 
 const argv = process.argv.slice(2);
@@ -30,7 +34,10 @@ const levels = (
 ).levels;
 const race = races.races.find((r) => r.id === raceId)!;
 const value = (res: Record<string, number>): number =>
-  Object.entries(res).reduce((s, [k, v]) => s + v * (marketData.values as Record<string, number>)[k], 0);
+  Object.entries(res).reduce(
+    (s, [k, v]) => s + v * (marketData.values as Record<string, number>)[k],
+    0,
+  );
 const unitCP = (u: (typeof units.units)[number], race?: string, mult = 1): number => {
   const mods = races.races.find((r) => r.id === race)?.mods;
   const base = u.baseStats.attack + u.baseStats.defense + u.baseStats.hp / 10;
@@ -102,12 +109,20 @@ function simulate(level: number, stopAt: number, seed0: number) {
 function idleIncomePerDay(level: number): number {
   const b = JSON.parse(
     readFileSync(fileURLToPath(new URL('../data/buildings.json', import.meta.url)), 'utf-8'),
-  ) as { buildings: { production?: { resource: string; perHour: number }; unlockLevel: number; maxCount: number }[] };
+  ) as {
+    buildings: {
+      production?: { resource: string; perHour: number };
+      unlockLevel: number;
+      maxCount: number;
+    }[];
+  };
   let perHour = 0;
   for (const d of b.buildings)
     if (d.production && d.unlockLevel <= level)
       perHour +=
-        d.production.perHour * level * Math.min(2, d.maxCount) *
+        d.production.perHour *
+        level *
+        Math.min(2, d.maxCount) *
         (marketData.values as Record<string, number>)[d.production.resource];
   return perHour * 24 * race.mods.resourceGain;
 }
@@ -118,14 +133,16 @@ for (const level of [3, 5, 7, 10]) {
   const cp = Math.round(armyCP(army));
   const idle = Math.round(idleIncomePerDay(level));
   console.log(`\n── 영지 Lv.${level} · 군대 전투력 ${cp} · 방치 수입 ≈ ${idle}/일(가치) ──`);
-  console.log('목표층 | 평균클리어 | 전멸률 | 보상가치 | 손실가치 | 순이익/회 | 하루(3회)/방치수입');
+  console.log(
+    '목표층 | 평균클리어 | 전멸률 | 보상가치 | 손실가치 | 순이익/회 | 하루(3회)/방치수입',
+  );
   let best = { stop: 0, net: -Infinity };
   for (const stop of [3, 5, 8, 10, 15, 20, 25, 30, 40, 50]) {
     const r = simulate(level, stop, 1000 + stop);
     const net = r.reward - r.loss;
     if (net > best.net) best = { stop, net };
     console.log(
-      `${String(stop).padStart(5)} | ${r.cleared.toFixed(1).padStart(9)} | ${(r.wipeRate * 100).toFixed(0).padStart(5)}% | ${String(Math.round(r.reward)).padStart(8)} | ${String(Math.round(r.loss)).padStart(8)} | ${String(Math.round(net)).padStart(9)} | ${((net * dungeonData.dailyEntries) / idle * 100).toFixed(0).padStart(6)}%`,
+      `${String(stop).padStart(5)} | ${r.cleared.toFixed(1).padStart(9)} | ${(r.wipeRate * 100).toFixed(0).padStart(5)}% | ${String(Math.round(r.reward)).padStart(8)} | ${String(Math.round(r.loss)).padStart(8)} | ${String(Math.round(net)).padStart(9)} | ${(((net * dungeonData.dailyEntries) / idle) * 100).toFixed(0).padStart(6)}%`,
     );
   }
   console.log(`최적 목표층 ≈ ${best.stop} (순이익/회 ${Math.round(best.net)})`);

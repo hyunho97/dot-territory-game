@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { GuildListItem, GuildState } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { guildBossSection } from './guildBoss';
 import { RES_COLORS, costEl, errMsg, openModal } from './panels';
 import type { PanelCtx } from './panels';
@@ -16,6 +17,7 @@ export function openGuildPanel(ctx: PanelCtx): void {
   const msg = h('div', { class: 'pro' });
   let state: GuildState | null = null;
   let list: GuildListItem[] = [];
+  let levelUpIcon = false; // 방금 길드 레벨이 올랐는지 (축하 일러스트 표시)
 
   /** 서버 호출 공통 처리: 성공하면 새 상태로 다시 그리고, 실패하면 오류만 보여 준다 */
   const act = async (fn: () => Promise<GuildState | { guild: GuildState }>, ok?: string) => {
@@ -24,7 +26,9 @@ export function openGuildPanel(ctx: PanelCtx): void {
     try {
       const r = await fn();
       // 기부 응답은 { result, guild: 상태 } 형태, 나머지는 상태 자체
+      const prevLevel = state?.guild?.level ?? 0;
       state = 'serverNow' in r ? r : r.guild;
+      levelUpIcon = !!state.guild && prevLevel > 0 && state.guild.level > prevLevel;
       if (ok) msg.textContent = ok;
       if (!state.guild) list = await api.guildList(serverId);
       await ctx.refresh();
@@ -96,7 +100,12 @@ export function openGuildPanel(ctx: PanelCtx): void {
         h(
           'div',
           { class: 'build-main' },
-          h('h3', { style: 'margin:0;color:var(--gold)' }, `${g.name}  Lv.${g.level}`),
+          h(
+            'h3',
+            { style: 'margin:0;color:var(--gold)' },
+            iconEl('guild/emblem', 32, ctx.manifest) ?? '',
+            ` ${g.name}  Lv.${g.level}`,
+          ),
           h(
             'div',
             { class: 'muted' },
@@ -256,7 +265,33 @@ export function openGuildPanel(ctx: PanelCtx): void {
       body.replaceChildren(h('div', { class: 'error' }, t('guild.locked', { n: state.minLevel })));
       return;
     }
-    body.replaceChildren(...(state.guild ? renderGuild(state) : renderNoGuild(state)), msg, err);
+    const banner = ctx.manifest['guild/banner']
+      ? h(
+          'div',
+          {
+            class: 'guild-banner-box',
+            style: `background-image:url(/${ctx.manifest['guild/banner']})`,
+          },
+          state.guild ? state.guild.name : t('guild.heading'),
+        )
+      : '';
+    const up =
+      levelUpIcon && iconEl('events/result_guild_levelup', 64, ctx.manifest)
+        ? h(
+            'div',
+            { class: 'pro' },
+            iconEl('events/result_guild_levelup', 64, ctx.manifest) ?? '',
+            ` ${t('guild.levelUp', { n: state.guild?.level ?? 0 })}`,
+          )
+        : '';
+    levelUpIcon = false;
+    body.replaceChildren(
+      banner,
+      up,
+      ...(state.guild ? renderGuild(state) : renderNoGuild(state)),
+      msg,
+      err,
+    );
   };
 
   openModal(t('guild.heading'), body, () => undefined, true);

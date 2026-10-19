@@ -147,6 +147,7 @@ export function speedupRow(
     return btn;
   };
   row.append(
+    iconEl('icons/speedup', 18, ctx.manifest) ?? '',
     h('span', { class: 'muted' }, t('speedup.have', { t: fmtDuration(have) })),
     mk(t('speedup.use10'), 600),
     mk(t('speedup.use60'), 3600),
@@ -523,6 +524,11 @@ export function openExplorePanel(ctx: PanelCtx): void {
     MAP_PX / 2 + y * scale,
   ];
 
+  const mapImg = new Image();
+  if (ctx.manifest['tiles/explore_map']) {
+    mapImg.onload = () => draw();
+    mapImg.src = `/${ctx.manifest['tiles/explore_map']}`;
+  }
   const grass = new Image();
   if (ctx.manifest['tiles/grass']) {
     grass.onload = () => draw();
@@ -534,7 +540,11 @@ export function openExplorePanel(ctx: PanelCtx): void {
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#1c2a1a';
     g.fillRect(0, 0, MAP_PX, MAP_PX);
-    if (grass.complete && grass.naturalWidth > 0) {
+    if (mapImg.complete && mapImg.naturalWidth > 0) {
+      g.drawImage(mapImg, 0, 0, MAP_PX, MAP_PX);
+      g.fillStyle = 'rgba(10,12,20,0.35)'; // 노드/글자가 잘 보이도록 약간 어둡게
+      g.fillRect(0, 0, MAP_PX, MAP_PX);
+    } else if (grass.complete && grass.naturalWidth > 0) {
       g.fillStyle = g.createPattern(grass, 'repeat') ?? '#1c2a1a';
       g.fillRect(0, 0, MAP_PX, MAP_PX);
       g.fillStyle = 'rgba(10,12,20,0.45)'; // 노드/글자가 잘 보이도록 어둡게

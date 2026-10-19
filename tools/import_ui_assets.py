@@ -1,4 +1,4 @@
-"""image/game_icons_ui_and_events_complete/ 의 UI·아이콘·이벤트 이미지를 게임 에셋으로 가져온다.
+"""image/game_icons_ui_and_events_complete/, image/phase2_assets_complete/ 의 UI·아이콘·이벤트 이미지를 게임 에셋으로 가져온다.
 
 - <카테고리>/<이름>.png -> assets/sprites/ui/<카테고리>/<이름>.png
 - manifest 키: `<카테고리>/<이름>` (예: icons/res_gold, emblems/human, events/explore_treasure, tiles/grass)
@@ -10,7 +10,10 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "image" / "game_icons_ui_and_events_complete"
+SRC_DIRS = [
+    ROOT / "image" / "game_icons_ui_and_events_complete",
+    ROOT / "image" / "phase2_assets_complete",
+]
 DST = ROOT / "assets" / "sprites" / "ui"
 MANIFEST = ROOT / "assets" / "manifest.json"
 
@@ -19,7 +22,8 @@ def main() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     sprites = manifest.setdefault("sprites", {})
     count = 0
-    for f in sorted(SRC.glob("*/*.png")):
+    files = [f for src in SRC_DIRS for f in sorted(src.glob("*/*.png"))]
+    for f in files:
         cat = f.parent.name
         out_dir = DST / cat
         out_dir.mkdir(parents=True, exist_ok=True)

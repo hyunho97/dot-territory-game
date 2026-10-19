@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { DungeonRun, DungeonState } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { RES_COLORS, errMsg, openModal } from './panels';
 import type { PanelCtx } from './panels';
 
@@ -37,6 +38,7 @@ export function openDungeonPanel(ctx: PanelCtx): void {
     return h(
       'div',
       { class: 'panel', style: 'margin-top:10px' },
+      run.cleared > 0 ? (iconEl('events/result_dungeon_clear', 64, ctx.manifest) ?? '') : '',
       h(
         'h3',
         { style: 'margin:0 0 6px' },
@@ -160,6 +162,9 @@ export function openDungeonPanel(ctx: PanelCtx): void {
     });
 
     body.replaceChildren(
+      ctx.manifest['dungeon/entrance']
+        ? h('img', { class: 'banner-img', src: `/${ctx.manifest['dungeon/entrance']}`, alt: '' })
+        : '',
       h(
         'div',
         { class: 'row', style: 'justify-content:flex-start;gap:16px;flex-wrap:wrap' },

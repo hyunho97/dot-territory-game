@@ -59,7 +59,10 @@ const st = {
   donated: 0, // 누적 기부 가치
 };
 const guildLevel = () => guildData.levelExp.filter((need) => st.guildExp >= need).length;
-const guildBuffProd = () => (GUILD && st.level >= guildData.minTerritoryLevel ? guildData.buffPerLevel.production * (guildLevel() - 1) : 0);
+const guildBuffProd = () =>
+  GUILD && st.level >= guildData.minTerritoryLevel
+    ? guildData.buffPerLevel.production * (guildLevel() - 1)
+    : 0;
 const guildReached = {};
 const reached = { 1: 0 };
 
@@ -72,19 +75,22 @@ const cap = () =>
   st.blds
     .filter((b) => b.busyUntil <= st.t && defs[b.type].storageBonus)
     .reduce((s, b) => s + defs[b.type].storageBonus * b.level, 0);
-const techBonus = (id) => (researchData.find((x) => x.id === id).perLevel) * st.tech[id];
-const busyCount = () =>
-  st.blds.filter((b) => b.busyUntil > st.t).length;
+const techBonus = (id) => researchData.find((x) => x.id === id).perLevel * st.tech[id];
+const busyCount = () => st.blds.filter((b) => b.busyUntil > st.t).length;
 const canPay = (cost) => Object.entries(cost).every(([k, v]) => st.res[k] >= v);
 const pay = (cost) => Object.entries(cost).forEach(([k, v]) => (st.res[k] -= v));
 const scaled = (base, mult) =>
-  Object.fromEntries(Object.entries(base).map(([k, v]) => [k, Math.ceil(v * mult * mods.costRate)]));
+  Object.fromEntries(
+    Object.entries(base).map(([k, v]) => [k, Math.ceil(v * mult * mods.costRate)]),
+  );
 
 function passiveIncomePerHour() {
   const inc = Object.fromEntries(RES.map((r) => [r, 0]));
   for (const b of st.blds) {
     const p = defs[b.type].production;
-    if (p && b.busyUntil <= st.t) inc[p.resource] += p.perHour * b.level * mods.resourceGain * (1 + techBonus('production') + guildBuffProd());
+    if (p && b.busyUntil <= st.t)
+      inc[p.resource] +=
+        p.perHour * b.level * mods.resourceGain * (1 + techBonus('production') + guildBuffProd());
   }
   return inc;
 }
@@ -100,8 +106,12 @@ function exploreIncomePerHour() {
     const avgDist = (n.minDist + n.maxDist) / 2;
     const roundTripMin = (2 * Math.ceil(avgDist * expl.tileSec)) / 60;
     const cycleMin = Math.max(roundTripMin, CHECK_MIN);
-    const nodeAmt = ((n.amount[0] + n.amount[1]) / 2) * (1 + (expl.amountPerLevel ?? 0) * (st.level - 1));
-    const perTrip = Math.min(nodeAmt, troops * expl.carryPerUnit * mods.resourceGain * (1 + techBonus('logistics')));
+    const nodeAmt =
+      ((n.amount[0] + n.amount[1]) / 2) * (1 + (expl.amountPerLevel ?? 0) * (st.level - 1));
+    const perTrip = Math.min(
+      nodeAmt,
+      troops * expl.carryPerUnit * mods.resourceGain * (1 + techBonus('logistics')),
+    );
     inc[n.resource] += ((n.weight / totalW) * expSlots() * perTrip * 60) / cycleMin;
   }
   return inc;
@@ -138,7 +148,10 @@ function step(dtMin) {
   if (QUESTS && Math.floor(st.t / 1440) > st.day) {
     st.day = Math.floor(st.t / 1440);
     const scale = 1 + questsData.rewardScalePerLevel * (st.level - 1);
-    const rewards = [...questsData.daily.map((q) => q.reward), questsData.attendance[(st.day - 1) % 7].reward];
+    const rewards = [
+      ...questsData.daily.map((q) => q.reward),
+      questsData.attendance[(st.day - 1) % 7].reward,
+    ];
     const c = cap();
     for (const rw of rewards)
       for (const [k, v] of Object.entries(rw))
@@ -150,10 +163,11 @@ function step(dtMin) {
     reached[st.level] = st.t;
     st.levelUp = null;
   }
-  for (const b of st.blds) if (b.upgradeTo && b.busyUntil <= st.t) {
-    b.level = b.upgradeTo;
-    b.upgradeTo = 0;
-  }
+  for (const b of st.blds)
+    if (b.upgradeTo && b.busyUntil <= st.t) {
+      b.level = b.upgradeTo;
+      b.upgradeTo = 0;
+    }
 }
 
 /** 투자 가치: 건물/업그레이드 비용(자원 합) 대비 시간당 생산 증가량 -> 회수 시간(시간) */
@@ -188,7 +202,12 @@ function act() {
         const tech = researchData.find((x) => x.id === id);
         const lv = st.tech[id];
         if (lv >= tech.maxLevel || st.level < tech.unlockLevel) continue;
-        const cost = Object.fromEntries(Object.entries(tech.cost).map(([k, v]) => [k, Math.ceil(v * Math.pow(tech.costGrowth, lv))]));
+        const cost = Object.fromEntries(
+          Object.entries(tech.cost).map(([k, v]) => [
+            k,
+            Math.ceil(v * Math.pow(tech.costGrowth, lv)),
+          ]),
+        );
         if (!canPay(cost)) continue;
         pay(cost);
         st.techJob = { id, at: st.t + (tech.timeSec * Math.pow(tech.timeGrowth, lv)) / 60 };
@@ -205,10 +224,17 @@ function act() {
       const owned = st.blds.filter((b) => b.type === d.id);
       if (owned.length < d.maxCount && d.production) {
         const cost = scaled(d.cost, 1);
-        options.push({ kind: 'build', d, cost, pb: paybackHours(cost, d.production.perHour), sec: d.buildTimeSec });
+        options.push({
+          kind: 'build',
+          d,
+          cost,
+          pb: paybackHours(cost, d.production.perHour),
+          sec: d.buildTimeSec,
+        });
       }
       for (const b of owned) {
-        if (!d.maxLevel || b.busyUntil > st.t || b.level >= Math.min(d.maxLevel, st.level)) continue;
+        if (!d.maxLevel || b.busyUntil > st.t || b.level >= Math.min(d.maxLevel, st.level))
+          continue;
         const cost = scaled(d.cost, Math.pow(costGrowth, b.level));
         const gain = d.production ? d.production.perHour : 0;
         const sec = Math.ceil(d.buildTimeSec * Math.pow(timeGrowth, b.level));
@@ -225,7 +251,14 @@ function act() {
       }
       for (const b of owned) {
         if (b.busyUntil > st.t || b.level >= Math.min(d.maxLevel, st.level)) continue;
-        options.push({ kind: 'up', d, b, cost: scaled(d.cost, Math.pow(costGrowth, b.level)), pb: 0.5, sec: Math.ceil(d.buildTimeSec * Math.pow(timeGrowth, b.level)) });
+        options.push({
+          kind: 'up',
+          d,
+          b,
+          cost: scaled(d.cost, Math.pow(costGrowth, b.level)),
+          pb: 0.5,
+          sec: Math.ceil(d.buildTimeSec * Math.pow(timeGrowth, b.level)),
+        });
       }
     }
     // 한 자원만 몰아 짓지 않도록, 이미 많이 생산 중인 자원일수록 회수 시간에 가중치를 둔다
@@ -235,7 +268,8 @@ function act() {
     const pick = options.find((o) => o.pb <= PAYBACK_H && canPay(o.cost));
     if (!pick) break;
     pay(pick.cost);
-    if (pick.kind === 'build') st.blds.push({ type: pick.d.id, level: 1, busyUntil: st.t + pick.sec / 60 });
+    if (pick.kind === 'build')
+      st.blds.push({ type: pick.d.id, level: 1, busyUntil: st.t + pick.sec / 60 });
     else {
       pick.b.upgradeTo = pick.b.level + 1;
       pick.b.busyUntil = st.t + pick.sec / 60;
@@ -255,10 +289,16 @@ while (st.level < levels.length && st.t < MAX_MIN) {
 
 const fmt = (min) => {
   const h = min / 60;
-  return h < 1 ? `${Math.round(min)}분` : h < 48 ? `${h.toFixed(1)}시간` : `${(h / 24).toFixed(1)}일`;
+  return h < 1
+    ? `${Math.round(min)}분`
+    : h < 48
+      ? `${h.toFixed(1)}시간`
+      : `${(h / 24).toFixed(1)}일`;
 };
 // (아래 출력에 길드 요약 추가)
-console.log(`종족=${raceId} 탐험=${mode} 투자회수=${PAYBACK_H}h 접속간격=${CHECK_MIN}분 연구=${RESEARCH ? 'on' : 'off'} 퀘스트=${QUESTS ? 'on' : 'off'} 길드=${GUILD ? 'on' : 'off'}`);
+console.log(
+  `종족=${raceId} 탐험=${mode} 투자회수=${PAYBACK_H}h 접속간격=${CHECK_MIN}분 연구=${RESEARCH ? 'on' : 'off'} 퀘스트=${QUESTS ? 'on' : 'off'} 길드=${GUILD ? 'on' : 'off'}`,
+);
 console.log('레벨 | 도달 시각(누적) | 직전 레벨 대비');
 let prev = 0;
 for (let l = 1; l <= levels.length; l++) {
@@ -266,7 +306,9 @@ for (let l = 1; l <= levels.length; l++) {
     console.log(`Lv.${String(l).padStart(2)} | 도달 못함 (${fmt(MAX_MIN)} 이내)`);
     break;
   }
-  console.log(`Lv.${String(l).padStart(2)} | ${fmt(reached[l]).padStart(9)} | +${fmt(reached[l] - prev)}`);
+  console.log(
+    `Lv.${String(l).padStart(2)} | ${fmt(reached[l]).padStart(9)} | +${fmt(reached[l] - prev)}`,
+  );
   prev = reached[l];
 }
 const inc = passiveIncomePerHour();

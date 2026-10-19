@@ -488,6 +488,7 @@
   },
   "guild": {
     "heading": "길드",
+    "levelUp": "길드 레벨이 {n}(으)로 올랐습니다!",
     "locked": "영지 Lv.{n} 부터 길드를 이용할 수 있습니다.",
     "createHeading": "길드 만들기",
     "namePlaceholder": "길드 이름 ({min}~{max}자)",
