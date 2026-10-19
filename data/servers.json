@@ -1,0 +1,9 @@
+{
+  "congestion": { "normalMax": 30, "busyMax": 100 },
+  "servers": [
+    { "id": 1, "name": "아르카디아" },
+    { "id": 2, "name": "발할라" },
+    { "id": 3, "name": "에이전" },
+    { "id": 4, "name": "니플헤임" }
+  ]
+}

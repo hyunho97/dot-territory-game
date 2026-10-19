@@ -1,0 +1,121 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "maxTroops": 10,
+      "unlockTier": 1
+    },
+    {
+      "level": 2,
+      "maxTroops": 25,
+      "unlockTier": 1,
+      "cost": {
+        "food": 150,
+        "wood": 300,
+        "stone": 200
+      },
+      "timeSec": 60
+    },
+    {
+      "level": 3,
+      "maxTroops": 50,
+      "unlockTier": 2,
+      "cost": {
+        "food": 100,
+        "wood": 200,
+        "stone": 130
+      },
+      "timeSec": 1800
+    },
+    {
+      "level": 4,
+      "maxTroops": 75,
+      "unlockTier": 2,
+      "cost": {
+        "food": 540,
+        "wood": 1080,
+        "stone": 720,
+        "iron": 200
+      },
+      "timeSec": 172800
+    },
+    {
+      "level": 5,
+      "maxTroops": 100,
+      "unlockTier": 3,
+      "cost": {
+        "food": 1030,
+        "wood": 2060,
+        "stone": 1370,
+        "iron": 380,
+        "gold": 380
+      },
+      "timeSec": 432000
+    },
+    {
+      "level": 6,
+      "maxTroops": 150,
+      "unlockTier": 3,
+      "cost": {
+        "food": 1950,
+        "wood": 3910,
+        "stone": 2610,
+        "iron": 720,
+        "gold": 720
+      },
+      "timeSec": 1036800
+    },
+    {
+      "level": 7,
+      "maxTroops": 200,
+      "unlockTier": 4,
+      "cost": {
+        "food": 3710,
+        "wood": 7430,
+        "stone": 4950,
+        "iron": 1380,
+        "gold": 1380
+      },
+      "timeSec": 2160000
+    },
+    {
+      "level": 8,
+      "maxTroops": 260,
+      "unlockTier": 4,
+      "cost": {
+        "food": 7060,
+        "wood": 14110,
+        "stone": 9410,
+        "iron": 2610,
+        "gold": 2610
+      },
+      "timeSec": 4320000
+    },
+    {
+      "level": 9,
+      "maxTroops": 330,
+      "unlockTier": 4,
+      "cost": {
+        "food": 13410,
+        "wood": 26820,
+        "stone": 17880,
+        "iron": 4970,
+        "gold": 4970
+      },
+      "timeSec": 8640000
+    },
+    {
+      "level": 10,
+      "maxTroops": 400,
+      "unlockTier": 5,
+      "cost": {
+        "food": 25480,
+        "wood": 50950,
+        "stone": 33970,
+        "iron": 9440,
+        "gold": 9440
+      },
+      "timeSec": 14688000
+    }
+  ]
+}

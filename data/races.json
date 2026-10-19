@@ -1,0 +1,74 @@
+{
+  "races": [
+    {
+      "id": "human",
+      "enabled": true,
+      "theme": ["#c0c8d8", "#e8b830", "#c03030"],
+      "mods": {
+        "combatPower": 1.0,
+        "resourceGain": 1.0,
+        "trainSpeed": 1.0,
+        "costRate": 1.0,
+        "equipGrade": "normal",
+        "classPower": {}
+      },
+      "startUnit": "human_militia"
+    },
+    {
+      "id": "elf",
+      "enabled": true,
+      "theme": ["#4caf50", "#8b5a2b", "#c0c8d8"],
+      "mods": {
+        "combatPower": 1.15,
+        "resourceGain": 0.85,
+        "trainSpeed": 1.0,
+        "costRate": 1.0,
+        "equipGrade": "up",
+        "classPower": { "ranged": 1.05, "magic": 1.05 }
+      },
+      "startUnit": "elf_apprentice_archer"
+    },
+    {
+      "id": "dwarf",
+      "enabled": true,
+      "theme": ["#b87333", "#4a2c17", "#ff8c1a"],
+      "mods": {
+        "combatPower": 0.9,
+        "resourceGain": 1.0,
+        "trainSpeed": 1.0,
+        "costRate": 1.0,
+        "equipGrade": "highChanceBonus",
+        "classPower": {}
+      },
+      "startUnit": "dwarf_miner_soldier"
+    },
+    {
+      "id": "undead",
+      "enabled": true,
+      "theme": ["#cfd8dc", "#26c6da", "#37474f"],
+      "mods": {
+        "combatPower": 0.9,
+        "resourceGain": 1.0,
+        "trainSpeed": 1.3,
+        "costRate": 0.75,
+        "equipGrade": "normal",
+        "classPower": {}
+      },
+      "startUnit": "undead_skeleton"
+    },
+    {
+      "id": "orc",
+      "enabled": true,
+      "theme": ["#2e7d32", "#8d6e63", "#c62828"],
+      "mods": {
+        "combatPower": 1.0,
+        "resourceGain": 1.0,
+        "trainSpeed": 0.85,
+        "costRate": 1.25,
+        "equipGrade": "down",
+        "classPower": { "melee": 1.2 }
+      },
+      "startUnit": "orc_grunt"
+    }
+  ]
+}

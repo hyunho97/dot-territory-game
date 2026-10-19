@@ -1,0 +1,65 @@
+{
+  "techs": [
+    {
+      "id": "production",
+      "effect": "production",
+      "perLevel": 0.05,
+      "maxLevel": 5,
+      "unlockLevel": 5,
+      "cost": {
+        "food": 300,
+        "wood": 300,
+        "stone": 200,
+        "gold": 100
+      },
+      "costGrowth": 1.8,
+      "timeSec": 1800,
+      "timeGrowth": 2.0
+    },
+    {
+      "id": "training",
+      "effect": "train",
+      "perLevel": 0.05,
+      "maxLevel": 5,
+      "unlockLevel": 5,
+      "cost": {
+        "food": 200,
+        "iron": 150,
+        "gold": 150
+      },
+      "costGrowth": 1.8,
+      "timeSec": 1800,
+      "timeGrowth": 2.0
+    },
+    {
+      "id": "tactics",
+      "effect": "combat",
+      "perLevel": 0.03,
+      "maxLevel": 5,
+      "unlockLevel": 6,
+      "cost": {
+        "food": 200,
+        "iron": 200,
+        "gold": 250
+      },
+      "costGrowth": 1.9,
+      "timeSec": 2700,
+      "timeGrowth": 2.0
+    },
+    {
+      "id": "logistics",
+      "effect": "carry",
+      "perLevel": 0.1,
+      "maxLevel": 5,
+      "unlockLevel": 5,
+      "cost": {
+        "food": 250,
+        "wood": 250,
+        "gold": 100
+      },
+      "costGrowth": 1.8,
+      "timeSec": 1800,
+      "timeGrowth": 2.0
+    }
+  ]
+}

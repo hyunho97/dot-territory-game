@@ -1,0 +1,205 @@
+{
+  "categories": [
+    "core",
+    "military",
+    "food",
+    "population",
+    "craft",
+    "resource",
+    "storage",
+    "trade",
+    "research"
+  ],
+  "buildings": [
+    {
+      "id": "town_hall",
+      "category": "core",
+      "unlockLevel": 1,
+      "buildable": false,
+      "maxCount": 1,
+      "cost": {},
+      "buildTimeSec": 0,
+      "color": "#e8b830",
+      "production": {
+        "resource": "gold",
+        "perHour": 30
+      }
+    },
+    {
+      "id": "barracks",
+      "category": "military",
+      "unlockLevel": 1,
+      "buildable": true,
+      "maxCount": 1,
+      "cost": {
+        "wood": 200,
+        "stone": 100
+      },
+      "buildTimeSec": 60,
+      "color": "#c03030",
+      "maxLevel": 10,
+      "speedBonus": {
+        "kind": "train",
+        "perLevel": 0.05
+      }
+    },
+    {
+      "id": "farm",
+      "category": "food",
+      "unlockLevel": 1,
+      "buildable": true,
+      "maxCount": 4,
+      "cost": {
+        "wood": 100,
+        "stone": 20
+      },
+      "buildTimeSec": 30,
+      "color": "#8bc34a",
+      "production": {
+        "resource": "food",
+        "perHour": 60
+      },
+      "maxLevel": 10
+    },
+    {
+      "id": "house",
+      "category": "population",
+      "unlockLevel": 1,
+      "buildable": true,
+      "maxCount": 6,
+      "cost": {
+        "food": 50,
+        "wood": 120,
+        "stone": 60
+      },
+      "buildTimeSec": 45,
+      "color": "#d7a86e",
+      "popBonus": 5,
+      "maxLevel": 10
+    },
+    {
+      "id": "lumber_camp",
+      "category": "resource",
+      "unlockLevel": 1,
+      "buildable": true,
+      "maxCount": 4,
+      "cost": {
+        "food": 50,
+        "wood": 80,
+        "stone": 20
+      },
+      "buildTimeSec": 30,
+      "color": "#6d4c41",
+      "production": {
+        "resource": "wood",
+        "perHour": 60
+      },
+      "maxLevel": 10
+    },
+    {
+      "id": "warehouse",
+      "category": "storage",
+      "unlockLevel": 1,
+      "buildable": true,
+      "maxCount": 3,
+      "cost": {
+        "wood": 150,
+        "stone": 100
+      },
+      "buildTimeSec": 60,
+      "color": "#a1887f",
+      "storageBonus": 2500,
+      "maxLevel": 10
+    },
+    {
+      "id": "quarry",
+      "category": "resource",
+      "unlockLevel": 2,
+      "buildable": true,
+      "maxCount": 4,
+      "cost": {
+        "food": 50,
+        "wood": 150
+      },
+      "buildTimeSec": 60,
+      "color": "#90a4ae",
+      "production": {
+        "resource": "stone",
+        "perHour": 50
+      },
+      "maxLevel": 10
+    },
+    {
+      "id": "smithy",
+      "category": "craft",
+      "unlockLevel": 3,
+      "buildable": true,
+      "maxCount": 1,
+      "cost": {
+        "wood": 300,
+        "stone": 200,
+        "iron": 50
+      },
+      "buildTimeSec": 120,
+      "color": "#ff8c1a",
+      "maxLevel": 10,
+      "speedBonus": {
+        "kind": "craft",
+        "perLevel": 0.05
+      }
+    },
+    {
+      "id": "mine",
+      "category": "resource",
+      "unlockLevel": 3,
+      "buildable": true,
+      "maxCount": 4,
+      "cost": {
+        "wood": 200,
+        "stone": 100
+      },
+      "buildTimeSec": 90,
+      "color": "#78909c",
+      "production": {
+        "resource": "iron",
+        "perHour": 30
+      },
+      "maxLevel": 10
+    },
+    {
+      "id": "market",
+      "category": "trade",
+      "unlockLevel": 4,
+      "buildable": true,
+      "maxCount": 1,
+      "cost": {
+        "wood": 400,
+        "stone": 300,
+        "gold": 100
+      },
+      "buildTimeSec": 120,
+      "maxLevel": 10,
+      "color": "#ffd54f"
+    },
+    {
+      "id": "lab",
+      "category": "research",
+      "unlockLevel": 5,
+      "buildable": true,
+      "maxCount": 1,
+      "cost": {
+        "wood": 500,
+        "stone": 400,
+        "iron": 150,
+        "gold": 200
+      },
+      "buildTimeSec": 180,
+      "color": "#7e57c2"
+    }
+  ],
+  "upgrade": {
+    "costGrowth": 1.7,
+    "timeGrowth": 2.0
+  },
+  "spriteTiers": [1, 4, 7]
+}

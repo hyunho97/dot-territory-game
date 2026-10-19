@@ -1,0 +1,10 @@
+{
+  "cpRangeMin": 0.5,
+  "cpRangeMax": 1.5,
+  "cooldownSec": 600,
+  "protectionHours": 24,
+  "plunderRatio": 0.1,
+  "protectedBase": 500,
+  "protectedPerWarehouseLevel": 300,
+  "maxTargets": 20
+}

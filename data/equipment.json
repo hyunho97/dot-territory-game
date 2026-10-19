@@ -1,0 +1,39 @@
+{
+  "grades": [
+    { "id": "common", "weight": 60, "power": 2, "salvage": { "iron": 10 }, "color": "#9e9e9e" },
+    { "id": "uncommon", "weight": 25, "power": 4, "salvage": { "iron": 20 }, "color": "#4caf50" },
+    {
+      "id": "rare",
+      "weight": 10,
+      "power": 7,
+      "salvage": { "iron": 40, "gold": 10 },
+      "color": "#2196f3"
+    },
+    {
+      "id": "epic",
+      "weight": 4,
+      "power": 11,
+      "salvage": { "iron": 80, "gold": 30 },
+      "color": "#9c27b0"
+    },
+    {
+      "id": "legendary",
+      "weight": 1,
+      "power": 16,
+      "salvage": { "iron": 150, "gold": 80 },
+      "color": "#ff9800"
+    }
+  ],
+  "highGradeFrom": "rare",
+  "raceGradeMult": { "human": 1.0, "elf": 1.2, "dwarf": 1.5, "undead": 1.0, "orc": 0.6 },
+  "raceQualityMult": { "human": 1.0, "elf": 1.0, "dwarf": 1.1, "undead": 1.0, "orc": 1.0 },
+  "powerRoll": [0.85, 1.15],
+  "types": [
+    { "id": "weapon", "cost": { "iron": 40, "wood": 20 }, "craftTimeSec": 60 },
+    { "id": "armor", "cost": { "iron": 60, "wood": 10 }, "craftTimeSec": 75 },
+    { "id": "shield", "cost": { "iron": 40, "wood": 30 }, "craftTimeSec": 60 },
+    { "id": "accessory", "cost": { "gold": 80, "iron": 10 }, "craftTimeSec": 90 }
+  ],
+  "craftSlots": { "base": 1, "levelsPerExtra": 4 },
+  "maxInventory": 50
+}

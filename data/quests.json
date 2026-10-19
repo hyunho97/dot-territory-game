@@ -1,0 +1,179 @@
+{
+  "dayOffsetHours": 9,
+  "rewardScalePerLevel": 0.25,
+  "tutorial": [
+    {
+      "id": "t_build_farm",
+      "goal": {
+        "types": ["build"],
+        "detail": "farm",
+        "count": 1
+      },
+      "reward": {
+        "wood": 150,
+        "food": 100
+      }
+    },
+    {
+      "id": "t_train",
+      "goal": {
+        "types": ["train"],
+        "count": 3
+      },
+      "reward": {
+        "gold": 100,
+        "iron": 50
+      }
+    },
+    {
+      "id": "t_expedition",
+      "goal": {
+        "types": ["expedition"],
+        "count": 1
+      },
+      "reward": {
+        "food": 150,
+        "wood": 150
+      }
+    },
+    {
+      "id": "t_pve",
+      "goal": {
+        "types": ["pveWin"],
+        "count": 1
+      },
+      "reward": {
+        "gold": 150,
+        "stone": 100
+      }
+    },
+    {
+      "id": "t_upgrade",
+      "goal": {
+        "types": ["upgrade"],
+        "count": 1
+      },
+      "reward": {
+        "gold": 100,
+        "iron": 80,
+        "speedup": 10
+      }
+    },
+    {
+      "id": "t_level2",
+      "goal": {
+        "state": "territoryLevel",
+        "count": 2
+      },
+      "reward": {
+        "food": 200,
+        "wood": 200,
+        "stone": 150,
+        "speedup": 30
+      }
+    }
+  ],
+  "daily": [
+    {
+      "id": "d_expedition",
+      "goal": {
+        "types": ["expedition"],
+        "count": 3
+      },
+      "reward": {
+        "wood": 200,
+        "stone": 100
+      }
+    },
+    {
+      "id": "d_train",
+      "goal": {
+        "types": ["train"],
+        "count": 10
+      },
+      "reward": {
+        "food": 200,
+        "iron": 60
+      }
+    },
+    {
+      "id": "d_pve",
+      "goal": {
+        "types": ["pveWin"],
+        "count": 1
+      },
+      "reward": {
+        "gold": 150
+      }
+    },
+    {
+      "id": "d_build",
+      "goal": {
+        "types": ["build", "upgrade"],
+        "count": 1
+      },
+      "reward": {
+        "food": 100,
+        "wood": 100,
+        "stone": 50
+      }
+    }
+  ],
+  "dailyBonus": {
+    "reward": {
+      "equipment": 1,
+      "speedup": 30
+    }
+  },
+  "attendance": [
+    {
+      "day": 1,
+      "reward": {
+        "food": 100,
+        "wood": 100
+      }
+    },
+    {
+      "day": 2,
+      "reward": {
+        "stone": 100,
+        "iron": 30
+      }
+    },
+    {
+      "day": 3,
+      "reward": {
+        "gold": 100
+      }
+    },
+    {
+      "day": 4,
+      "reward": {
+        "food": 200,
+        "wood": 200
+      }
+    },
+    {
+      "day": 5,
+      "reward": {
+        "iron": 100,
+        "stone": 150,
+        "speedup": 60
+      }
+    },
+    {
+      "day": 6,
+      "reward": {
+        "gold": 200
+      }
+    },
+    {
+      "day": 7,
+      "reward": {
+        "equipment": 1,
+        "gold": 300,
+        "speedup": 120
+      }
+    }
+  ]
+}

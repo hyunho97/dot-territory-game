@@ -1,0 +1,7 @@
+{
+  "values": { "food": 1, "wood": 1, "stone": 1.2, "iron": 2, "gold": 3 },
+  "baseFee": 0.2,
+  "feePerLevel": 0.01,
+  "minFee": 0.05,
+  "dailyVolumePerLevel": 5000
+}

@@ -1,0 +1,120 @@
+{
+  "stages": [
+    {
+      "id": "skeleton_scouts",
+      "requiredLevel": 1,
+      "army": [
+        {
+          "unitId": "undead_skeleton",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "gold": 60,
+        "iron": 20
+      },
+      "firstClearSpeedupMin": 5
+    },
+    {
+      "id": "bandits",
+      "requiredLevel": 1,
+      "army": [
+        {
+          "unitId": "human_militia",
+          "count": 6
+        }
+      ],
+      "reward": {
+        "gold": 120,
+        "food": 100
+      },
+      "firstClearSpeedupMin": 10
+    },
+    {
+      "id": "orc_raiders",
+      "requiredLevel": 3,
+      "army": [
+        {
+          "unitId": "orc_grunt",
+          "count": 8
+        },
+        {
+          "unitId": "orc_warrior",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "gold": 300,
+        "iron": 120,
+        "food": 150
+      },
+      "firstClearSpeedupMin": 20
+    },
+    {
+      "id": "skeleton_legion",
+      "requiredLevel": 5,
+      "army": [
+        {
+          "unitId": "undead_skeleton",
+          "count": 20
+        },
+        {
+          "unitId": "undead_skeleton_archer",
+          "count": 10
+        },
+        {
+          "unitId": "undead_lich_apprentice",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "gold": 800,
+        "iron": 300,
+        "stone": 300
+      },
+      "firstClearSpeedupMin": 30
+    },
+    {
+      "id": "dark_knights",
+      "requiredLevel": 7,
+      "army": [
+        {
+          "unitId": "undead_death_knight",
+          "count": 8
+        },
+        {
+          "unitId": "human_knight",
+          "count": 4
+        }
+      ],
+      "reward": {
+        "gold": 1800,
+        "iron": 800,
+        "wood": 600
+      },
+      "firstClearSpeedupMin": 45
+    },
+    {
+      "id": "red_dragon",
+      "requiredLevel": 10,
+      "army": [
+        {
+          "unitId": "human_dragon",
+          "count": 3
+        },
+        {
+          "unitId": "orc_warrior",
+          "count": 20
+        }
+      ],
+      "reward": {
+        "gold": 5000,
+        "iron": 2000,
+        "stone": 1500,
+        "food": 1500
+      },
+      "firstClearSpeedupMin": 60
+    }
+  ],
+  "dailyRewardWins": 5
+}

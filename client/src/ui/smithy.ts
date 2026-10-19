@@ -1,0 +1,228 @@
+import { api } from '../api/client';
+import type { EquipmentState, EquipItem } from '../api/client';
+import { t } from '../i18n';
+import { h } from './dom';
+import { costEl, errMsg, fmtDuration, openModal, once } from './panels';
+import type { PanelCtx } from './panels';
+
+export const GRADE_COLORS: Record<string, string> = {
+  common: '#9e9e9e',
+  uncommon: '#4caf50',
+  rare: '#2196f3',
+  epic: '#9c27b0',
+  legendary: '#ff9800',
+};
+const TYPE_ICON: Record<string, string> = {
+  weapon: '검',
+  armor: '갑',
+  shield: '방',
+  accessory: '장',
+};
+const TYPES = ['weapon', 'armor', 'shield', 'accessory'] as const;
+const GRADE_ORDER = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
+
+/** 장비 아이콘: 에셋 매니페스트(equip/<type>)가 있으면 이미지, 없으면 등급 색 플레이스홀더 */
+function icon(ctx: PanelCtx, type: string, grade: string): HTMLElement {
+  const path = ctx.manifest[`equip/${type}`];
+  if (path) return h('img', { class: 'eq-icon', src: `/${path}`, alt: type });
+  return h(
+    'div',
+    {
+      class: 'eq-icon placeholder',
+      style: `border-color:${GRADE_COLORS[grade]};color:${GRADE_COLORS[grade]}`,
+    },
+    TYPE_ICON[type] ?? '?',
+  );
+}
+
+export function openSmithyPanel(ctx: PanelCtx): void {
+  const body = h('div', { class: 'modal-body' });
+  const err = h('div', { class: 'error' });
+  const serverId = ctx.getChar().serverId;
+  let state: EquipmentState | null = null;
+  let offset = 0;
+  let timer = 0;
+  const now = () => Date.now() + offset;
+  let close: () => void = () => {};
+
+  const itemName = (i: { type: string; grade: string }) =>
+    `${t(`equip.grade.${i.grade}`)} ${t(`equip.type.${i.type}`)}`;
+
+  const act = async (fn: () => Promise<EquipmentState>) => {
+    err.textContent = '';
+    try {
+      state = await fn();
+      offset = state.serverNow - Date.now();
+      await ctx.refresh(); // 장비 보정이 전투력에 반영된 최신 상태
+    } catch (e) {
+      err.textContent = errMsg(e);
+    }
+    render();
+  };
+
+  const render = () => {
+    if (!state) return;
+    const st = state;
+    const ch = ctx.getChar();
+    const mods = ctx.race.mods;
+    const sections: HTMLElement[] = [];
+
+    sections.push(
+      h(
+        'div',
+        { class: 'muted' },
+        `${t('equip.bonus', { n: Math.round((st.multiplier - 1) * 1000) / 10 })} · ${t('equip.inventory', { n: st.items.length, max: st.maxInventory })} · ${t('equip.slots', { n: st.queue.length, max: st.craftSlots })}`,
+      ),
+    );
+    if (!st.hasSmithy) sections.push(h('div', { class: 'error' }, t('equip.noSmithy')));
+
+    // 장착 슬롯
+    sections.push(h('h3', {}, t('equip.equipped')));
+    const slotRow = h('div', { class: 'eq-slots' });
+    for (const type of TYPES) {
+      const it = st.items.find((x) => x.equipped && x.type === type);
+      slotRow.append(
+        h(
+          'div',
+          { class: 'eq-slot' },
+          it ? icon(ctx, it.type, it.grade) : icon(ctx, type, 'common'),
+          h('div', { class: 'muted' }, t(`equip.type.${type}`)),
+          it
+            ? h(
+                'div',
+                { style: `color:${GRADE_COLORS[it.grade]}` },
+                `${t(`equip.grade.${it.grade}`)} +${it.power}%`,
+              )
+            : h('div', { class: 'muted' }, t('equip.empty')),
+        ),
+      );
+    }
+    sections.push(slotRow);
+
+    // 제작
+    sections.push(h('h3', {}, t('equip.craft')));
+    for (const def of ctx.equipment.types) {
+      const btn = h('button', { class: 'btn primary' }, t('equip.craftBtn'));
+      (btn as HTMLButtonElement).disabled =
+        !st.hasSmithy ||
+        st.queue.length >= st.craftSlots ||
+        st.items.length + st.queue.length >= st.maxInventory;
+      btn.addEventListener('click', () => {
+        (btn as HTMLButtonElement).disabled = true;
+        void act(() => api.craft(serverId, def.id));
+      });
+      sections.push(
+        h(
+          'div',
+          { class: 'build-card' },
+          h(
+            'div',
+            { class: 'build-main' },
+            h('strong', {}, t(`equip.type.${def.id}`)),
+            h(
+              'div',
+              {},
+              `${t('buildPanel.cost')}: `,
+              costEl(def.cost, ch.resources, mods.costRate),
+              h(
+                'span',
+                { class: 'muted' },
+                `  ${t('barracks.time', { t: fmtDuration(Math.ceil(def.craftTimeSec / (mods.trainSpeed * (1 + ch.craftBonus)))) })}`,
+              ),
+            ),
+          ),
+          btn,
+        ),
+      );
+    }
+    sections.push(
+      h('div', { class: 'muted' }, t('equip.chanceHint', { race: t(`race.${ch.race}.name`) })),
+    );
+
+    // 제작 큐
+    sections.push(h('h3', {}, t('equip.queue')));
+    if (st.queue.length === 0) sections.push(h('div', { class: 'muted' }, t('equip.queueNone')));
+    for (const q of st.queue) {
+      sections.push(
+        h(
+          'div',
+          { class: 'build-row' },
+          h('strong', {}, t(`equip.type.${q.type}`)),
+          h(
+            'span',
+            { class: 'cd', 'data-finish': q.finishAt },
+            t('barracks.ready', { t: fmtDuration((q.finishAt - now()) / 1000) }),
+          ),
+        ),
+      );
+    }
+
+    // 인벤토리
+    sections.push(h('h3', {}, t('equip.items')));
+    if (st.items.length === 0) sections.push(h('div', { class: 'muted' }, t('equip.itemsNone')));
+    const sorted = [...st.items].sort(
+      (a, b) =>
+        Number(b.equipped) - Number(a.equipped) ||
+        GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade) ||
+        b.power - a.power,
+    );
+    for (const it of sorted) sections.push(itemRow(it));
+    body.replaceChildren(...sections, err);
+  };
+
+  const itemRow = (it: EquipItem): HTMLElement => {
+    const equipBtn = h(
+      'button',
+      { class: 'btn' },
+      it.equipped ? t('equip.unequip') : t('equip.equip'),
+    );
+    equipBtn.addEventListener(
+      'click',
+      () =>
+        void act(() => (it.equipped ? api.unequip(serverId, it.id) : api.equip(serverId, it.id))),
+    );
+    const salvageBtn = h('button', { class: 'btn' }, t('equip.salvage'));
+    (salvageBtn as HTMLButtonElement).disabled = it.equipped;
+    salvageBtn.addEventListener('click', () => void act(() => api.salvage(serverId, it.id)));
+    return h(
+      'div',
+      { class: 'unit-card', style: `border-color:${GRADE_COLORS[it.grade]}` },
+      icon(ctx, it.type, it.grade),
+      h(
+        'div',
+        { class: 'info' },
+        h('strong', { style: `color:${GRADE_COLORS[it.grade]}` }, itemName(it)),
+        h('div', { class: 'muted' }, t('equip.power', { n: it.power })),
+        it.equipped ? h('span', { class: 'badge mine' }, t('equip.worn')) : null,
+      ),
+      h('div', { class: 'row' }, equipBtn, salvageBtn),
+    );
+  };
+
+  close = openModal(t('equip.heading'), body, () => clearInterval(timer), true);
+  body.replaceChildren(h('div', { class: 'muted' }, t('common.loading')));
+  const load = async () => {
+    try {
+      state = await api.equipment(serverId);
+      offset = state.serverNow - Date.now();
+    } catch (e) {
+      err.textContent = errMsg(e);
+    }
+    render();
+  };
+  void load();
+  const tick = once(() =>
+    load()
+      .then(() => ctx.refresh())
+      .catch(() => close()),
+  );
+  timer = window.setInterval(() => {
+    let finished = false;
+    body.querySelectorAll<HTMLElement>('.cd').forEach((el) => {
+      const left = (Number(el.dataset.finish) - now()) / 1000;
+      el.textContent = t('barracks.ready', { t: fmtDuration(left) });
+      if (left <= 0) finished = true;
+    });
+    if (finished) tick();
+  }, 1000);
+}

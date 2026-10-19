@@ -1,0 +1,51 @@
+{
+  "nickname": {
+    "min": 2,
+    "max": 12
+  },
+  "territoryName": {
+    "min": 2,
+    "max": 12
+  },
+  "start": {
+    "territoryLevel": 1,
+    "resources": {
+      "food": 500,
+      "wood": 600,
+      "stone": 400,
+      "iron": 100,
+      "gold": 200
+    },
+    "buildings": [
+      {
+        "type": "town_hall",
+        "level": 1,
+        "x": 5,
+        "y": 3
+      },
+      {
+        "type": "barracks",
+        "level": 1,
+        "x": 8,
+        "y": 3
+      }
+    ],
+    "tier1UnitCount": 5
+  },
+  "sessionDays": 30,
+  "offlineMaxHours": 12,
+  "storage": {
+    "base": 2000,
+    "perLevel": 5000
+  },
+  "buildSlots": {
+    "base": 1,
+    "levelsPerExtra": 3
+  },
+  "trainSlots": {
+    "base": 2,
+    "levelsPerExtra": 3
+  },
+  "maxTrainAmount": 999,
+  "offlineReportMinSec": 120
+}

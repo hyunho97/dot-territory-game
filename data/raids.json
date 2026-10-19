@@ -1,0 +1,36 @@
+{
+  "intervalHours": 6,
+  "intervalJitter": 0.3,
+  "minTerritoryLevel": 2,
+  "strengthRatio": [0.5, 1.0],
+  "minStrength": 30,
+  "config": {
+    "winnerLossRatio": 0.25,
+    "loserLossRatio": 0.3,
+    "drawLossRatio": 0.25
+  },
+  "raiderByLevel": [
+    {
+      "fromLevel": 1,
+      "unitId": "orc_grunt"
+    },
+    {
+      "fromLevel": 3,
+      "unitId": "orc_warrior"
+    },
+    {
+      "fromLevel": 5,
+      "unitId": "orc_thrower"
+    },
+    {
+      "fromLevel": 7,
+      "unitId": "orc_warlord"
+    }
+  ],
+  "plunderRatio": 0.1,
+  "rewardPerCP": {
+    "gold": 0.3,
+    "iron": 0.15
+  },
+  "winSpeedupMin": 10
+}
