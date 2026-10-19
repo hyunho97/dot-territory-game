@@ -13,6 +13,13 @@ import {
 import { pvpAttack, pvpTargets } from '../services/pvpService.js';
 import { recordEvent } from '../services/questEvents.js';
 import { touchSeen } from '../services/sessionService.js';
+import {
+  FailLimiter,
+  hashPassword,
+  normalizeLoginId,
+  validPassword,
+  verifyPassword,
+} from '../services/authRules.js';
 import { registerExtraRoutes } from './extra.js';
 import { battleHistory, stageList, startPveBattle } from '../services/battleService.js';
 import {
@@ -24,12 +31,15 @@ import {
   trainUnits,
 } from '../services/territoryService.js';
 
-type UserRow = { id: number; nickname: string; token: string };
+const SESSION_DAYS = 30;
+const DUMMY = hashPassword('dummy-password-for-timing');
 
 function requireUser(req: FastifyRequest): number {
   const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
   const row = token
-    ? (db.prepare('SELECT id FROM users WHERE token = ?').get(token) as { id: number } | undefined)
+    ? (db
+        .prepare('SELECT user_id AS id FROM sessions WHERE token = ? AND expires_at > ?')
+        .get(token, Date.now()) as { id: number } | undefined)
     : undefined;
   if (!row) throw new GameError('UNAUTHORIZED', 401);
   return row.id;
@@ -42,25 +52,68 @@ export function registerRoutes(app: FastifyInstance): void {
     return reply.status(500).send({ error: 'INTERNAL' });
   });
 
-  // 닉네임 기반 임시 로그인 (초기 단계: 비밀번호 없음. 같은 닉네임이면 같은 계정으로 재접속)
-  app.post('/api/auth/guest', async (req) => {
-    const { nickname } = (req.body ?? {}) as { nickname?: string };
-    if (typeof nickname !== 'string') throw new GameError('INVALID_NICKNAME');
-    const nick = nickname.trim();
+  // ── ID/비밀번호 계정 ──
+  const loginLimiter = new FailLimiter(5, 10 * 60_000);
+  const newSession = (userId: number): string => {
+    const token = randomBytes(32).toString('hex');
+    const now = Date.now();
+    db.prepare(
+      'INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?,?,?,?)',
+    ).run(token, userId, now, now + SESSION_DAYS * 86_400_000);
+    db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now);
+    return token;
+  };
+
+  app.post('/api/auth/register', async (req) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const loginId = normalizeLoginId(body.loginId);
+    if (!loginId) throw new GameError('INVALID_LOGIN_ID');
+    if (!validPassword(body.password)) throw new GameError('INVALID_PASSWORD');
+    if (typeof body.nickname !== 'string') throw new GameError('INVALID_NICKNAME');
+    const nick = body.nickname.trim();
     const { min, max } = gameConfig.nickname;
     if (nick.length < min || nick.length > max) throw new GameError('INVALID_NICKNAME');
-    const find = db.prepare('SELECT id, nickname, token FROM users WHERE nickname = ?');
-    let user = find.get(nick) as UserRow | undefined;
-    if (!user) {
-      const token = randomBytes(24).toString('hex');
-      db.prepare('INSERT INTO users (nickname, token, created_at) VALUES (?,?,?)').run(
-        nick,
-        token,
-        Date.now(),
-      );
-      user = find.get(nick) as UserRow;
+    if (db.prepare('SELECT 1 FROM users WHERE login_id = ?').get(loginId))
+      throw new GameError('LOGIN_ID_TAKEN', 409);
+    if (db.prepare('SELECT 1 FROM users WHERE nickname = ?').get(nick))
+      throw new GameError('NICKNAME_TAKEN', 409);
+    const { salt, hash } = hashPassword(body.password);
+    const info = db
+      .prepare(
+        'INSERT INTO users (nickname, token, login_id, pw_hash, pw_salt, created_at) VALUES (?,?,?,?,?,?)',
+      )
+      .run(nick, randomBytes(24).toString('hex'), loginId, hash, salt, Date.now());
+    return { nickname: nick, token: newSession(Number(info.lastInsertRowid)) };
+  });
+
+  app.post('/api/auth/login', async (req) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const loginId = normalizeLoginId(body.loginId);
+    const key = `${loginId ?? '?'}|${req.ip}`;
+    if (loginLimiter.blocked(key)) throw new GameError('TOO_MANY_ATTEMPTS', 429);
+    const user = loginId
+      ? (db
+          .prepare('SELECT id, nickname, pw_hash, pw_salt FROM users WHERE login_id = ?')
+          .get(loginId) as
+          { id: number; nickname: string; pw_hash: string; pw_salt: string } | undefined)
+      : undefined;
+    const password = typeof body.password === 'string' ? body.password : '';
+    // 존재하지 않는 ID 도 같은 비용의 해시 계산을 해서 응답 시간 차이로 ID 존재 여부가 드러나지 않게 한다
+    const ok = user
+      ? verifyPassword(password, user.pw_salt, user.pw_hash)
+      : (verifyPassword(password, DUMMY.salt, DUMMY.hash), false);
+    if (!user || !ok) {
+      loginLimiter.fail(key);
+      throw new GameError('INVALID_CREDENTIALS');
     }
-    return { nickname: user.nickname, token: user.token };
+    loginLimiter.reset(key);
+    return { nickname: user.nickname, token: newSession(user.id) };
+  });
+
+  app.post('/api/auth/logout', async (req) => {
+    const token = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+    if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    return { ok: true };
   });
 
   app.get('/api/servers', async (req) => {

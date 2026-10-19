@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT, nickname TEXT NOT NULL UNIQUE,
   token TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS characters (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id),
@@ -135,6 +139,18 @@ CREATE TABLE IF NOT EXISTS market_daily (
 const charCols2 = (db.prepare('PRAGMA table_info(characters)').all() as { name: string }[]).map(
   (c) => c.name,
 );
+const userCols = (db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map(
+  (c) => c.name,
+);
+for (const [name, type] of [
+  ['login_id', 'TEXT'],
+  ['pw_hash', 'TEXT'],
+  ['pw_salt', 'TEXT'],
+] as const) {
+  if (!userCols.includes(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${type}`);
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_login_id ON users(login_id)');
+
 for (const [name, type] of [
   ['last_seen_at', 'INTEGER'],
   ['seen_res', 'TEXT'],

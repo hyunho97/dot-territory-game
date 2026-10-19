@@ -26,23 +26,66 @@ function msg(e: unknown): string {
 
 export async function titleScreen(nav: Nav): Promise<HTMLElement> {
   const err = h('div', { class: 'error' });
-  const input = h('input', {
+  let registering = false;
+  const idInput = h('input', {
+    class: 'input',
+    placeholder: t('title.loginIdPlaceholder'),
+    maxlength: 20,
+    autocomplete: 'username',
+    value: session.loginId ?? '',
+  }) as HTMLInputElement;
+  const pwInput = h('input', {
+    class: 'input',
+    type: 'password',
+    placeholder: t('title.passwordPlaceholder'),
+    maxlength: 64,
+    autocomplete: 'current-password',
+  }) as HTMLInputElement;
+  const nickInput = h('input', {
     class: 'input',
     placeholder: t('title.nicknamePlaceholder'),
     maxlength: 12,
-    value: session.nickname ?? '',
-  });
+  }) as HTMLInputElement;
+  const nickRow = h(
+    'div',
+    { class: 'title-nick', style: 'display:none' },
+    h('label', {}, t('title.nickname')),
+    nickInput,
+  );
+  const submitBtn = h('button', { class: 'btn primary' }, t('title.login'));
+  const switchBtn = h('button', { class: 'btn' }, t('title.toRegister'));
+  const hint = h('div', { class: 'muted' }, t('title.hint'));
+
+  const applyMode = () => {
+    nickRow.style.display = registering ? '' : 'none';
+    submitBtn.textContent = registering ? t('title.register') : t('title.login');
+    switchBtn.textContent = registering ? t('title.toLogin') : t('title.toRegister');
+    pwInput.autocomplete = registering ? 'new-password' : 'current-password';
+    hint.textContent = registering ? t('title.registerHint') : t('title.hint');
+    err.textContent = '';
+  };
   const submit = async () => {
     err.textContent = '';
+    (submitBtn as HTMLButtonElement).disabled = true;
     try {
-      const r = await api.guestLogin(input.value);
-      session.set(r.token, r.nickname);
+      const r = registering
+        ? await api.register(idInput.value, pwInput.value, nickInput.value)
+        : await api.login(idInput.value, pwInput.value);
+      session.set(r.token, r.nickname, idInput.value.trim().toLowerCase());
       nav.afterLogin();
     } catch (e) {
       err.textContent = msg(e);
+    } finally {
+      (submitBtn as HTMLButtonElement).disabled = false;
     }
   };
-  input.addEventListener('keydown', (ev) => ev.key === 'Enter' && submit());
+  submitBtn.addEventListener('click', () => void submit());
+  switchBtn.addEventListener('click', () => {
+    registering = !registering;
+    applyMode();
+  });
+  for (const el of [idInput, pwInput, nickInput])
+    el.addEventListener('keydown', (ev) => ev.key === 'Enter' && void submit());
 
   const sprites = h('div', { class: 'title-sprites' });
   for (const [id, label] of [
@@ -62,11 +105,15 @@ export async function titleScreen(nav: Nav): Promise<HTMLElement> {
     h(
       'div',
       { class: 'title-form panel' },
-      h('label', {}, t('title.nickname')),
-      input,
-      h('button', { class: 'btn primary', onclick: submit }, t('title.enter')),
+      h('label', {}, t('title.loginId')),
+      idInput,
+      h('label', {}, t('title.password')),
+      pwInput,
+      nickRow,
+      submitBtn,
+      switchBtn,
       err,
-      h('div', { class: 'muted' }, t('title.hint')),
+      hint,
     ),
   );
 }
@@ -99,6 +146,7 @@ export async function modeScreen(nav: Nav): Promise<HTMLElement> {
       {
         class: 'btn',
         onclick: () => {
+          void api.logout().catch(() => undefined);
           session.clear();
           nav.toTitle();
         },

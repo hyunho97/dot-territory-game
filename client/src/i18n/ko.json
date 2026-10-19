@@ -12,10 +12,18 @@
     "claim": "받기"
   },
   "title": {
+    "loginId": "아이디",
+    "loginIdPlaceholder": "아이디 (영문 소문자·숫자·_ 4~20자)",
+    "password": "비밀번호",
+    "passwordPlaceholder": "비밀번호 (8자 이상)",
     "nickname": "닉네임",
-    "nicknamePlaceholder": "닉네임을 입력하세요 (2~12자)",
-    "enter": "게임 입장",
-    "hint": "같은 닉네임으로 다시 접속하면 이어서 플레이합니다."
+    "nicknamePlaceholder": "게임에서 쓸 닉네임 (2~12자)",
+    "login": "로그인",
+    "register": "가입하고 시작",
+    "toRegister": "처음이신가요? 회원가입",
+    "toLogin": "이미 계정이 있어요 · 로그인",
+    "hint": "아이디와 비밀번호로 로그인합니다.",
+    "registerHint": "닉네임은 다른 플레이어에게 보이는 이름입니다."
   },
   "server": {
     "heading": "서버 선택",
@@ -172,6 +180,12 @@
   "error": {
     "UNAUTHORIZED": "로그인이 필요합니다.",
     "INVALID_NICKNAME": "닉네임은 2~12자여야 합니다.",
+    "INVALID_LOGIN_ID": "아이디는 영문 소문자·숫자·밑줄(_) 4~20자여야 합니다.",
+    "INVALID_PASSWORD": "비밀번호는 8~64자여야 합니다.",
+    "LOGIN_ID_TAKEN": "이미 사용 중인 아이디입니다.",
+    "NICKNAME_TAKEN": "이미 사용 중인 닉네임입니다.",
+    "INVALID_CREDENTIALS": "아이디 또는 비밀번호가 올바르지 않습니다.",
+    "TOO_MANY_ATTEMPTS": "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     "INVALID_RACE": "선택할 수 없는 종족입니다.",
     "INVALID_TERRITORY_NAME": "영지 이름은 2~12자여야 합니다.",
     "CHARACTER_EXISTS": "이미 이 서버에 영지가 있습니다.",

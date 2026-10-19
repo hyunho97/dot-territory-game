@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'dot.token';
+const LOGIN_ID_KEY = 'dot.loginId';
 const NICK_KEY = 'dot.nickname';
 
 export class ApiError extends Error {
@@ -274,9 +275,13 @@ export const session = {
   get nickname(): string | null {
     return localStorage.getItem(NICK_KEY);
   },
-  set(token: string, nickname: string): void {
+  get loginId(): string | null {
+    return localStorage.getItem(LOGIN_ID_KEY);
+  },
+  set(token: string, nickname: string, loginId?: string): void {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(NICK_KEY, nickname);
+    if (loginId) localStorage.setItem(LOGIN_ID_KEY, loginId);
   },
   clear(): void {
     localStorage.removeItem(TOKEN_KEY);
@@ -302,11 +307,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  guestLogin: (nickname: string) =>
-    request<{ token: string; nickname: string }>('/api/auth/guest', {
+  register: (loginId: string, password: string, nickname: string) =>
+    request<{ token: string; nickname: string }>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ loginId, password, nickname }),
     }),
+  login: (loginId: string, password: string) =>
+    request<{ token: string; nickname: string }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ loginId, password }),
+    }),
+  logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST', body: '{}' }),
   servers: () => request<ServerInfo[]>('/api/servers'),
   createCharacter: (serverId: number, race: string, territoryName: string) =>
     request<CharacterState>(`/api/servers/${serverId}/character`, {
