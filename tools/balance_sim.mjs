@@ -7,6 +7,7 @@
  *   --check     플레이어가 접속해 행동하는 간격(분)
  *   --research  on|off  연구소(생산·보급 연구) 투자 반영 (기본 on)
  *   --quests    on|off  일일 퀘스트·출석 보상 수입 반영 (기본 on)
+ *   --guild     on|off  영지 Lv.3 부터 길드에 가입해 매일 한도까지 기부하고 길드 생산 버프를 받음 (기본 on)
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +22,8 @@ const expl = load('exploration.json');
 const races = load('races.json').races;
 const researchData = load('research.json').techs;
 const questsData = load('quests.json');
+const guildData = load('guild.json');
+const marketValues = load('market.json').values;
 
 const argv = process.argv.slice(2);
 const arg = (name, def) => {
@@ -33,6 +36,7 @@ const PAYBACK_H = Number(arg('payback', 10));
 const CHECK_MIN = Number(arg('check', 30));
 const RESEARCH = arg('research', 'on') === 'on';
 const QUESTS = arg('quests', 'on') === 'on';
+const GUILD = arg('guild', 'on') === 'on';
 const mods = races.find((r) => r.id === raceId).mods;
 const RES = ['food', 'wood', 'stone', 'iron', 'gold'];
 const defs = Object.fromEntries(buildingsData.buildings.map((b) => [b.id, b]));
@@ -50,7 +54,13 @@ const st = {
   tech: { production: 0, logistics: 0 }, // 연구 레벨
   techJob: null, // {id, at}
   day: 0,
+  guildExp: 0,
+  guildDay: 0,
+  donated: 0, // 누적 기부 가치
 };
+const guildLevel = () => guildData.levelExp.filter((need) => st.guildExp >= need).length;
+const guildBuffProd = () => (GUILD && st.level >= guildData.minTerritoryLevel ? guildData.buffPerLevel.production * (guildLevel() - 1) : 0);
+const guildReached = {};
 const reached = { 1: 0 };
 
 const buildSlots = () => cfg.buildSlots.base + Math.floor(st.level / cfg.buildSlots.levelsPerExtra);
@@ -74,7 +84,7 @@ function passiveIncomePerHour() {
   const inc = Object.fromEntries(RES.map((r) => [r, 0]));
   for (const b of st.blds) {
     const p = defs[b.type].production;
-    if (p && b.busyUntil <= st.t) inc[p.resource] += p.perHour * b.level * mods.resourceGain * (1 + techBonus('production'));
+    if (p && b.busyUntil <= st.t) inc[p.resource] += p.perHour * b.level * mods.resourceGain * (1 + techBonus('production') + guildBuffProd());
   }
   return inc;
 }
@@ -109,6 +119,20 @@ function step(dtMin) {
   if (st.techJob && st.techJob.at <= st.t) {
     st.tech[st.techJob.id]++;
     st.techJob = null;
+  }
+  // 길드: 영지 Lv.3 부터 매일 기부 한도까지 (식량/나무 위주, 자원의 30% 이내만) 기부
+  if (GUILD && st.level >= guildData.minTerritoryLevel && Math.floor(st.t / 1440) > st.guildDay) {
+    st.guildDay = Math.floor(st.t / 1440);
+    let budget = guildData.dailyDonateValueLimit;
+    for (const r of ['food', 'wood']) {
+      const give = Math.min(budget / marketValues[r], st.res[r] * 0.3);
+      st.res[r] -= give;
+      budget -= give * marketValues[r];
+      st.donated += give * marketValues[r];
+      st.guildExp += Math.floor(give * marketValues[r] * guildData.expPerValue);
+    }
+    const lv = guildLevel();
+    if (!guildReached[lv]) guildReached[lv] = st.t;
   }
   // 일일 퀘스트 + 출석(매일 1회, 접속 간격이 하루 이내인 플레이어 가정)
   if (QUESTS && Math.floor(st.t / 1440) > st.day) {
@@ -233,7 +257,8 @@ const fmt = (min) => {
   const h = min / 60;
   return h < 1 ? `${Math.round(min)}분` : h < 48 ? `${h.toFixed(1)}시간` : `${(h / 24).toFixed(1)}일`;
 };
-console.log(`종족=${raceId} 탐험=${mode} 투자회수=${PAYBACK_H}h 접속간격=${CHECK_MIN}분 연구=${RESEARCH ? 'on' : 'off'} 퀘스트=${QUESTS ? 'on' : 'off'}`);
+// (아래 출력에 길드 요약 추가)
+console.log(`종족=${raceId} 탐험=${mode} 투자회수=${PAYBACK_H}h 접속간격=${CHECK_MIN}분 연구=${RESEARCH ? 'on' : 'off'} 퀘스트=${QUESTS ? 'on' : 'off'} 길드=${GUILD ? 'on' : 'off'}`);
 console.log('레벨 | 도달 시각(누적) | 직전 레벨 대비');
 let prev = 0;
 for (let l = 1; l <= levels.length; l++) {
@@ -246,3 +271,12 @@ for (let l = 1; l <= levels.length; l++) {
 }
 const inc = passiveIncomePerHour();
 console.log('최종 방치 수입/시간:', Object.fromEntries(RES.map((r) => [r, Math.round(inc[r])])));
+
+if (GUILD) {
+  console.log(
+    `길드: 최종 Lv.${guildLevel()} (경험치 ${Math.round(st.guildExp)}), 누적 기부 가치 ${Math.round(st.donated)}, 도달 시점:`,
+    Object.entries(guildReached)
+      .map(([lv, m]) => `Lv.${lv}=${fmt(m)}`)
+      .join(' '),
+  );
+}

@@ -13,7 +13,7 @@
     { "fromFloor": 34, "unitId": "undead_lich" },
     { "fromFloor": 42, "unitId": "human_dragon" }
   ],
-  "floorReward": { "gold": 20, "food": 30, "iron": 8 },
+  "floorReward": { "gold": 40, "food": 60, "iron": 16 },
   "rewardGrowthPerFloor": 0.15,
   "levelScalePerLevel": 0.1,
   "milestones": {

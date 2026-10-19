@@ -12,11 +12,11 @@ import {
 describe('guild rules', () => {
   it('경험치로 길드 레벨 계산', () => {
     assert.equal(guildLevel(0), 1);
-    assert.equal(guildLevel(299), 1);
-    assert.equal(guildLevel(300), 2);
-    assert.equal(guildLevel(32000), 10);
-    assert.equal(guildLevel(999999), 10);
-    assert.equal(nextLevelExp(1), 300);
+    assert.equal(guildLevel(2999), 1);
+    assert.equal(guildLevel(3000), 2);
+    assert.equal(guildLevel(320000), 10);
+    assert.equal(guildLevel(9999999), 10);
+    assert.equal(nextLevelExp(1), 3000);
     assert.equal(nextLevelExp(10), null);
   });
 

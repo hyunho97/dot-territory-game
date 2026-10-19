@@ -206,6 +206,8 @@ export interface DungeonState {
   locked: boolean;
   bestFloor: number;
   maxFloors: number;
+  baseCP: number;
+  cpGrowth: number;
   entriesLeft: number;
   maxEntries: number;
   preview: {

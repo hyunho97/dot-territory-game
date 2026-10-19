@@ -5,7 +5,7 @@
   "noticeMaxLength": 100,
   "baseMembers": 10,
   "membersPerLevel": 2,
-  "levelExp": [0, 300, 900, 2000, 4000, 7000, 11000, 16000, 23000, 32000],
+  "levelExp": [0, 3000, 9000, 20000, 40000, 70000, 110000, 160000, 230000, 320000],
   "expPerValue": 0.1,
   "dailyDonateValueLimit": 5000,
   "buffPerLevel": { "production": 0.01, "combat": 0.005 },

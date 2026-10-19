@@ -50,6 +50,8 @@ export function dungeonState(characterId: number) {
     locked: level < dungeonData.minTerritoryLevel,
     bestFloor: best,
     maxFloors: dungeonData.maxFloors,
+    baseCP: dungeonData.baseCP,
+    cpGrowth: dungeonData.cpGrowth,
     entriesLeft: Math.max(0, dungeonData.dailyEntries - used),
     maxEntries: dungeonData.dailyEntries,
     preview,

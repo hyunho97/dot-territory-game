@@ -79,6 +79,16 @@ export function openDungeonPanel(ctx: PanelCtx): void {
     stopAt = Math.max(1, Math.min(st.maxFloors, stopAt));
     const startBtn = h('button', { class: 'btn primary' }, t('dungeon.enter'));
     const total = h('div', { class: 'muted' });
+    const risk = h('div', {});
+    let myCP = 0;
+    const showRisk = () => {
+      const f = Math.max(1, Math.min(st.maxFloors, Math.floor(stopAt) || 1));
+      const enemy = st.baseCP * Math.pow(st.cpGrowth, f - 1);
+      const ratio = myCP > 0 ? enemy / myCP : Infinity;
+      const level = ratio <= 0.1 ? 'safe' : ratio <= 0.2 ? 'costly' : 'danger';
+      risk.className = level === 'safe' ? 'pro' : level === 'costly' ? 'muted' : 'con';
+      risk.textContent = t(`dungeon.risk.${level}`, { f, cp: Math.round(enemy) });
+    };
     const calc = () => {
       let n = 0;
       let cp = 0;
@@ -89,6 +99,8 @@ export function openDungeonPanel(ctx: PanelCtx): void {
         cp += v * (ch.unitCP[u.unitId] ?? 0);
       }
       total.textContent = `${t('battle.selected', { n, max: ch.idleTroops })} · ${t('battle.myCP')} ${Math.round(cp)}`;
+      myCP = cp;
+      showRisk();
       (startBtn as HTMLButtonElement).disabled = n < 1 || n > ch.idleTroops || st.entriesLeft < 1;
     };
     if (Object.keys(sel).length === 0) {
@@ -131,6 +143,7 @@ export function openDungeonPanel(ctx: PanelCtx): void {
     }) as HTMLInputElement;
     stopInput.addEventListener('input', () => {
       stopAt = Number(stopInput.value);
+      showRisk();
     });
     startBtn.addEventListener('click', async () => {
       err.textContent = '';
@@ -193,6 +206,7 @@ export function openDungeonPanel(ctx: PanelCtx): void {
       h('h3', { style: 'margin-top:10px' }, t('dungeon.troops')),
       ...rows,
       total,
+      risk,
       h(
         'div',
         { class: 'row', style: 'justify-content:flex-start;gap:8px;margin-top:8px' },
