@@ -666,3 +666,36 @@ select.input {
   padding: 2px 8px;
   font-size: 12px;
 }
+
+.att-day {
+  width: 64px;
+  height: 72px;
+  margin: 0 auto 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  color: #3a2a18;
+  font-size: 12px;
+  padding-top: 8px;
+}
+.topbar .btn .icon {
+  margin-right: 4px;
+}
+.topbar .btn.badge-on::after {
+  display: none;
+}
+.topbar .btn .icon + .icon,
+.topbar .btn > .icon:last-child:not(:first-child) {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  margin: 0;
+}
+.rname .icon,
+.detail h2 .icon {
+  margin-right: 2px;
+}

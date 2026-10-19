@@ -589,6 +589,9 @@ export const api = {
 
 /** 에셋 매니페스트 기반 스프라이트 조회. 없으면 null -> 플레이스홀더 */
 let manifest: Record<string, string> | null = null;
+/** 이미 불러온 매니페스트(없으면 빈 객체) — 동기 UI 코드에서 아이콘 조회용 */
+export const getManifestSync = (): Record<string, string> => manifest ?? {};
+
 export async function loadManifest(): Promise<Record<string, string>> {
   if (manifest) return manifest;
   try {

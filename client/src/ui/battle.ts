@@ -403,6 +403,22 @@ export function openBattlePanel(ctx: PanelCtx): void {
       g.restore();
     };
 
+    // 원거리/마법 유닛이 있으면 접근 구간에 투사체를 날린다 (연출 전용)
+    const kindOf = (list: { unitId: string }[]): 'arrow' | 'magic' | null => {
+      const classes = list.map((u) => ctx.units.find((x) => x.id === u.unitId)?.class);
+      return classes.includes('magic') ? 'magic' : classes.includes('ranged') ? 'arrow' : null;
+    };
+    const fxImg = (name: string): HTMLImageElement | null => {
+      const path = ctx.manifest[`fx/projectile_${name}`];
+      if (!path) return null;
+      const im = new Image();
+      im.src = `/${path}`;
+      return im;
+    };
+    const fx = { arrow: fxImg('arrow'), magic: fxImg('magic') };
+    const kindA = kindOf(out.armyA);
+    const kindB = kindOf(out.armyB);
+
     const T_APPROACH = 900;
     const T_CLASH = 1700;
     const T_END = 3200;
@@ -425,6 +441,23 @@ export function openBattlePanel(ctx: PanelCtx): void {
       tokensA.forEach((tk, i) => drawToken(tk, 'A', i, advance, p));
       tokensB.forEach((tk, i) => drawToken(tk, 'B', i, advance, p));
       g.restore();
+      for (const [side, kind] of [
+        ['A', kindA],
+        ['B', kindB],
+      ] as const) {
+        const img = kind ? fx[kind] : null;
+        if (!img || !img.complete || e < 150 || e > T_CLASH) continue;
+        for (let i = 0; i < 4; i++) {
+          const k = ((((e - 150 + i * 170) % 700) + 700) % 700) / 700;
+          const x = side === 'A' ? 80 + k * (W - 160) : W - 80 - k * (W - 160);
+          const y = 40 + i * 78 + Math.sin(k * Math.PI) * -18;
+          g.save();
+          g.translate(x, y);
+          if (side === 'B') g.scale(-1, 1);
+          g.drawImage(img, -16, -16, 32, 32);
+          g.restore();
+        }
+      }
       if (e > T_APPROACH && e < T_CLASH + 200) {
         const k = (e - T_APPROACH) / (T_CLASH - T_APPROACH);
         g.strokeStyle = `rgba(255,220,120,${1 - Math.min(1, k)})`;

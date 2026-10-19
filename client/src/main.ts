@@ -11,6 +11,7 @@ import { openBarracksPanel } from './ui/barracks';
 import { openBattlePanel } from './ui/battle';
 import { openMarketPanel } from './ui/market';
 import { openQuestPanel, hasClaimable } from './ui/quests';
+import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openGuildPanel } from './ui/guild';
 import { openRankingPanel } from './ui/ranking';
@@ -79,11 +80,17 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   const gameRoot = h('div', { id: 'game-root' });
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
 
-  const actionBtn = (label: string, onclick: () => void, extra = ''): HTMLElement =>
-    h('button', { class: `btn primary${extra}`, onclick }, label);
+  const actionBtn = (label: string, onclick: () => void, extra = '', icon?: string): HTMLElement =>
+    h(
+      'button',
+      { class: `btn primary${extra}`, onclick },
+      (icon && iconEl(icon, 16, manifest)) || '',
+      label,
+    );
 
   const renderTop = () => {
     const info: HTMLElement[] = [
+      iconEl(`emblems/${ch.race}`, 22, manifest) ?? h('span'),
       h('strong', {}, ch.territoryName),
       h('span', { class: 'lvl' }, t('territory.level', { n: ch.territoryLevel })),
     ];
@@ -92,7 +99,8 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
         h(
           'span',
           { class: 'res' },
-          h('span', { class: 'swatch', style: `background:${RES_COLORS[k]}` }),
+          iconEl(`icons/res_${k}`, 16, manifest) ??
+            h('span', { class: 'swatch', style: `background:${RES_COLORS[k]}` }),
           `${t(`resource.${k}`)} ${v}`,
         ),
       );
@@ -111,11 +119,11 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       actionBtn(t('territory.tabSmithy'), () => openSmithyPanel(ctx)),
       actionBtn(t('territory.tabBattle'), () => openBattlePanel(ctx)),
       actionBtn(t('territory.tabExplore'), () => openExplorePanel(ctx)),
-      actionBtn(t('territory.tabMarket'), () => openMarketPanel(ctx)),
+      actionBtn(t('territory.tabMarket'), () => openMarketPanel(ctx), '', 'icons/trade'),
       actionBtn(t('territory.tabDungeon'), () => openDungeonPanel(ctx)),
       actionBtn(t('territory.tabGuild'), () => openGuildPanel(ctx)),
-      actionBtn(t('territory.tabResearch'), () => openResearchPanel(ctx)),
-      actionBtn(t('territory.tabRanking'), () => openRankingPanel(ctx)),
+      actionBtn(t('territory.tabResearch'), () => openResearchPanel(ctx), '', 'icons/research'),
+      actionBtn(t('territory.tabRanking'), () => openRankingPanel(ctx), '', 'icons/ranking'),
       h(
         'button',
         {
@@ -126,7 +134,9 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
               renderTop();
             }),
         },
+        iconEl('icons/quest', 16, manifest) ?? '',
         t('territory.tabQuest'),
+        questBadge ? (iconEl('icons/quest_badge', 18, manifest) ?? '') : '',
       ),
       h('span', { class: 'spacer' }),
       h('button', { class: 'btn', onclick: () => nav.toMode() }, t('territory.logout')),

@@ -2,6 +2,7 @@ import { ApiError, api, loadManifest, session } from '../api/client';
 import type { CharacterState, RaceData, ServerInfo, UnitData } from '../api/client';
 import { errorMessage, t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 
 export interface Nav {
   toTitle(): void;
@@ -286,7 +287,12 @@ export async function raceScreen(nav: Nav, server: ServerInfo): Promise<HTMLElem
       manifest[`races/${race.id}`]
         ? h('img', { class: 'race-banner', src: `/${manifest[`races/${race.id}`]}`, alt: '' })
         : h('div'),
-      h('h2', {}, t(`race.${race.id}.name`)),
+      h(
+        'h2',
+        {},
+        iconEl(`emblems/${race.id}`, 32, manifest) ?? '',
+        ` ${t(`race.${race.id}.name`)}`,
+      ),
       h('p', {}, t(`race.${race.id}.desc`)),
       h('div', { class: 'pro' }, `▲ ${t('race.pros')}: ${t(`race.${race.id}.pros`)}`),
       h('div', { class: 'con' }, `▼ ${t('race.cons')}: ${t(`race.${race.id}.cons`)}`),
@@ -320,7 +326,12 @@ export async function raceScreen(nav: Nav, server: ServerInfo): Promise<HTMLElem
         { class: 'portrait', style: `border-bottom:4px solid ${race.theme[1]}` },
         unit ? await spriteEl(unit.sprite, t(`unit.${unit.id}`)) : null,
       ),
-      h('div', { class: 'rname', style: `color:${race.theme[0]}` }, t(`race.${race.id}.name`)),
+      h(
+        'div',
+        { class: 'rname', style: `color:${race.theme[0]}` },
+        iconEl(`emblems/${race.id}`, 22, manifest) ?? '',
+        ` ${t(`race.${race.id}.name`)}`,
+      ),
       h('div', { class: 'rsum' }, t(`race.${race.id}.summary`)),
     );
     cardEls.set(race.id, card);

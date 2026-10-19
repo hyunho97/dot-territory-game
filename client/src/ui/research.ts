@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import type { ResearchState } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { costEl, errMsg, fmtDuration, once, openModal, speedupRow } from './panels';
 import type { PanelCtx } from './panels';
 
@@ -72,7 +73,12 @@ export function openResearchPanel(ctx: PanelCtx): void {
             h(
               'div',
               {},
-              h('strong', {}, t(`research.tech.${tech.id}`)),
+              iconEl(
+                `icons/research_${tech.id === 'logistics' ? 'supply' : tech.id}`,
+                24,
+                ctx.manifest,
+              ) ?? '',
+              h('strong', {}, ` ${t(`research.tech.${tech.id}`)}`),
               h(
                 'span',
                 { class: 'muted' },

@@ -1,8 +1,21 @@
 import type { OfflineReport } from '../api/client';
 import { t } from '../i18n';
 import { h } from './dom';
+import { iconEl } from './icons';
 import { describeEvent } from './eventText';
 import { RES_COLORS, openModal } from './panels';
+
+/** 중요한 이벤트에 붙일 일러스트 (매니페스트에 없으면 아이콘 없이 글만 표시) */
+function eventIcon(ev: { key: string; params: Record<string, unknown> }): string | null {
+  if (ev.key === 'raid') return 'icons/invasion_warning';
+  if (ev.key === 'expeditionDone') {
+    const kind = (ev.params as { event?: string }).event;
+    if (kind === 'treasure') return 'events/explore_treasure';
+    if (kind === 'ambush') return 'events/explore_ambush';
+    if (kind === 'equipment_find') return 'events/explore_gear';
+  }
+  return null;
+}
 
 function fmtAway(sec: number): string {
   const d = Math.floor(sec / 86400);
@@ -16,7 +29,7 @@ function fmtAway(sec: number): string {
 /** 접속 시 보여 주는 "자리를 비운 동안" 요약: 자원 변화 + 있었던 일 (반복되는 일은 묶어서 표시) */
 export function openReportModal(report: OfflineReport): void {
   const counts: Record<string, number> = {};
-  const detailed: string[] = [];
+  const detailed: { text: string; icon: string | null }[] = [];
   for (const ev of report.events) {
     // 개별로 보여 줄 중요한 일
     const special =
@@ -25,7 +38,7 @@ export function openReportModal(report: OfflineReport): void {
       ev.key === 'pvpDefended' ||
       ev.key === 'levelUp' ||
       (ev.key === 'expeditionDone' && (ev.params as { event?: string }).event);
-    if (special) detailed.push(describeEvent(ev));
+    if (special) detailed.push({ text: describeEvent(ev), icon: eventIcon(ev) });
     else counts[ev.key] = (counts[ev.key] ?? 0) + 1;
   }
   const summaryLines: string[] = [];
@@ -58,7 +71,12 @@ export function openReportModal(report: OfflineReport): void {
         )
       : h('div', { class: 'muted' }, t('report.none')),
     h('h3', { style: 'margin-top:12px' }, t('report.happened')),
-    h('ul', {}, ...[...detailed, ...summaryLines].map((line) => h('li', {}, line))),
+    h(
+      'ul',
+      {},
+      ...detailed.map((d) => h('li', {}, (d.icon && iconEl(d.icon, 28)) || '', ` ${d.text}`)),
+      ...summaryLines.map((line) => h('li', {}, line)),
+    ),
     h('div', { class: 'row', style: 'margin-top:12px' }),
   );
   const close = openModal(t('report.heading'), body, () => undefined);

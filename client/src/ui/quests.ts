@@ -183,7 +183,16 @@ export function openQuestPanel(ctx: PanelCtx, onChange: (q: QuestsState) => void
           h(
             'div',
             { class: `att-cell${claimedDay ? ' done' : ''}${isNext ? ' next' : ''}` },
-            h('div', { class: 'muted' }, t('quest.dayN', { n: r.day })),
+            ctx.manifest['events/attendance_card']
+              ? h(
+                  'div',
+                  {
+                    class: 'att-day',
+                    style: `background-image:url(/${ctx.manifest[r.day === a.rewards.length ? 'events/attendance_card_day7' : 'events/attendance_card']})`,
+                  },
+                  t('quest.dayN', { n: r.day }),
+                )
+              : h('div', { class: 'muted' }, t('quest.dayN', { n: r.day })),
             h('div', { style: 'font-size:12px' }, rewardText(r.reward)),
           ),
         );

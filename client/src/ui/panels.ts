@@ -12,6 +12,7 @@ import type {
 import { errorMessage, t } from '../i18n';
 import { buildingThumb } from './buildingSprite';
 import { h } from './dom';
+import { iconEl } from './icons';
 
 export const RES_COLORS: Record<string, string> = {
   food: '#8bc34a',
@@ -278,7 +279,14 @@ export function openBuildingPanel(ctx: PanelCtx): void {
         h(
           'div',
           { class: 'build-row' },
-          h('strong', {}, label),
+          h(
+            'span',
+            {},
+            (label === t(`building.${b.type}`) &&
+              iconEl('buildings/under_construction', 32, ctx.manifest)) ||
+              '',
+            h('strong', {}, ` ${label}`),
+          ),
           h(
             'span',
             { class: 'cd', 'data-finish': fin },
@@ -515,11 +523,23 @@ export function openExplorePanel(ctx: PanelCtx): void {
     MAP_PX / 2 + y * scale,
   ];
 
+  const grass = new Image();
+  if (ctx.manifest['tiles/grass']) {
+    grass.onload = () => draw();
+    grass.src = `/${ctx.manifest['tiles/grass']}`;
+  }
+
   const draw = () => {
     const g = canvas.getContext('2d')!;
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#1c2a1a';
     g.fillRect(0, 0, MAP_PX, MAP_PX);
+    if (grass.complete && grass.naturalWidth > 0) {
+      g.fillStyle = g.createPattern(grass, 'repeat') ?? '#1c2a1a';
+      g.fillRect(0, 0, MAP_PX, MAP_PX);
+      g.fillStyle = 'rgba(10,12,20,0.45)'; // 노드/글자가 잘 보이도록 어둡게
+      g.fillRect(0, 0, MAP_PX, MAP_PX);
+    }
     g.strokeStyle = 'rgba(255,255,255,0.06)';
     g.lineWidth = 1;
     for (let i = -MAP_RADIUS; i <= MAP_RADIUS; i++) {
