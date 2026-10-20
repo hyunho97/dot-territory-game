@@ -1,7 +1,7 @@
 import './style.css';
 import type Phaser from 'phaser';
 import { ApiError, api, loadManifest, session } from './api/client';
-import type { CharacterState, ServerInfo } from './api/client';
+import type { CharacterState, QuestView, ServerInfo } from './api/client';
 import { errorMessage, t } from './i18n';
 import { h, mount } from './ui/dom';
 import { describeEvent } from './ui/eventText';
@@ -14,6 +14,8 @@ import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
+import { currentStep, guideEl, openIntro, openOutro } from './ui/tutorial';
+import type { DockKey } from './ui/tutorial';
 import { openGuildPanel } from './ui/guild';
 import { openRankingPanel } from './ui/ranking';
 import { openReportModal } from './ui/report';
@@ -84,7 +86,11 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     units,
     manifest,
     spriteTiers,
-    onBuildingClick: (type: string) => openBuildingPanel(ctx, type),
+    onBuildingClick: (type: string) => {
+      const s = tutorialStep();
+      if (s && s.target !== 'territory') return; // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
+      openBuildingPanel(ctx, type);
+    },
   });
   // 서버 시각 기준 시계 + 일꾼(동시 건설 슬롯) 표시. 1초마다 갱신
   let clockOffset = ch.serverNow - Date.now();
@@ -121,14 +127,51 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   const gameRoot = h('div', { id: 'game-root' });
   let isAdmin = false; // 테스트용 관리자 계정이면 하단 메뉴에 관리자 버튼을 보인다
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
+  // 튜토리얼: 튜토리얼 퀘스트가 남아 있는 동안 안내 단계의 버튼만 누를 수 있다
+  let tutorial: QuestView[] | null = null;
+  let tutSkipped = false; // 관리자 전용 건너뛰기
+  let hadStep = false;
+  const guideBox = h('div', { class: 'guide-box' });
+  const tutorialStep = () => (tutSkipped ? null : currentStep(tutorial));
 
-  const dockBtn = (label: string, onclick: () => void, icon: string): HTMLElement =>
-    h(
+  const dockBtn = (key: DockKey, label: string, onclick: () => void, icon: string): HTMLElement => {
+    const step = tutorialStep();
+    const locked = !!step && key !== step.target && key !== 'quest' && key !== 'admin';
+    return h(
       'button',
-      { class: 'dock-btn', onclick },
+      {
+        class: `dock-btn${locked ? ' locked' : ''}${step && key === step.target ? ' hl' : ''}`,
+        onclick: () => {
+          if (!locked) onclick();
+        },
+      },
       iconEl(icon, 28, manifest) ?? h('span', { class: 'dock-ph' }),
       h('span', { class: 'dock-label' }, label),
     );
+  };
+
+  // 튜토리얼 상태 갱신: 처음이면 소개, 모두 끝나면 완료 안내
+  const applyTutorial = (list: QuestView[]) => {
+    const first = tutorial === null;
+    tutorial = list;
+    const step = tutorialStep();
+    if (first && step && step.index === 0 && !step.ready) {
+      const key = `tutIntro_${ch.serverId}`;
+      try {
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, '1');
+          openIntro();
+        }
+      } catch {
+        /* 저장소를 못 쓰는 환경이면 소개를 건너뜀 */
+      }
+    }
+    if (step) hadStep = true;
+    else if (hadStep) {
+      hadStep = false;
+      openOutro();
+    }
+  };
 
   const renderTop = () => {
     const chip = (...kids: (HTMLElement | string)[]) => h('span', { class: 'chip' }, ...kids);
@@ -174,26 +217,52 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     topbar.replaceChildren(brand, resBox, stats);
 
     dock.replaceChildren(
-      dockBtn(t('territory.tabTerritory'), () => openBuildingPanel(ctx), 'icons/nav_territory'),
-      dockBtn(t('territory.tabBarracks'), () => openBarracksPanel(ctx), 'icons/nav_barracks'),
-      dockBtn(t('territory.tabSmithy'), () => openSmithyPanel(ctx), 'icons/nav_smithy'),
-      dockBtn(t('territory.tabBattle'), () => openBattlePanel(ctx), 'icons/nav_battle'),
-      dockBtn(t('territory.tabExplore'), () => openExplorePanel(ctx), 'icons/nav_explore'),
-      dockBtn(t('territory.tabMarket'), () => openMarketPanel(ctx), 'icons/trade'),
-      dockBtn(t('territory.tabDungeon'), () => openDungeonPanel(ctx), 'icons/nav_dungeon'),
-      dockBtn(t('territory.tabGuild'), () => openGuildPanel(ctx), 'icons/nav_guild'),
-      dockBtn(t('territory.tabResearch'), () => openResearchPanel(ctx), 'icons/research'),
-      dockBtn(t('territory.tabRanking'), () => openRankingPanel(ctx), 'icons/ranking'),
+      dockBtn(
+        'territory',
+        t('territory.tabTerritory'),
+        () => openBuildingPanel(ctx),
+        'icons/nav_territory',
+      ),
+      dockBtn(
+        'barracks',
+        t('territory.tabBarracks'),
+        () => openBarracksPanel(ctx),
+        'icons/nav_barracks',
+      ),
+      dockBtn('smithy', t('territory.tabSmithy'), () => openSmithyPanel(ctx), 'icons/nav_smithy'),
+      dockBtn('battle', t('territory.tabBattle'), () => openBattlePanel(ctx), 'icons/nav_battle'),
+      dockBtn(
+        'explore',
+        t('territory.tabExplore'),
+        () => openExplorePanel(ctx),
+        'icons/nav_explore',
+      ),
+      dockBtn('market', t('territory.tabMarket'), () => openMarketPanel(ctx), 'icons/trade'),
+      dockBtn(
+        'dungeon',
+        t('territory.tabDungeon'),
+        () => openDungeonPanel(ctx),
+        'icons/nav_dungeon',
+      ),
+      dockBtn('guild', t('territory.tabGuild'), () => openGuildPanel(ctx), 'icons/nav_guild'),
+      dockBtn(
+        'research',
+        t('territory.tabResearch'),
+        () => openResearchPanel(ctx),
+        'icons/research',
+      ),
+      dockBtn('ranking', t('territory.tabRanking'), () => openRankingPanel(ctx), 'icons/ranking'),
       ...(isAdmin
-        ? [dockBtn(t('territory.tabAdmin'), () => openAdminPanel(ctx), 'icons/research')]
+        ? [dockBtn('admin', t('territory.tabAdmin'), () => openAdminPanel(ctx), 'icons/research')]
         : []),
       h(
         'button',
         {
-          class: `dock-btn${questBadge ? ' badge-on' : ''}`,
+          class: `dock-btn${questBadge ? ' badge-on' : ''}${tutorialStep()?.target === 'quest' ? ' hl' : ''}`,
           onclick: () =>
             openQuestPanel(ctx, (q) => {
               questBadge = hasClaimable(q);
+              applyTutorial(q.tutorial);
               renderTop();
             }),
         },
@@ -201,6 +270,20 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
         h('span', { class: 'dock-label' }, t('territory.tabQuest')),
         questBadge ? (iconEl('icons/quest_badge', 18, manifest) ?? '') : '',
       ),
+    );
+    const step = tutorialStep();
+    guideBox.replaceChildren(
+      step
+        ? guideEl(
+            step,
+            isAdmin
+              ? () => {
+                  tutSkipped = true;
+                  renderTop();
+                }
+              : undefined,
+          )
+        : '',
     );
     clockOffset = ch.serverNow - Date.now();
     tickClock();
@@ -216,6 +299,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       const before = sig(ch);
       ch = withPreview(await api.me(ch.serverId, true)); // 접속 중 하트비트 포함
       renderTop();
+      if (tutorialStep()) void refreshQuestBadge(); // 튜토리얼 진행도 반영
       if (sig(ch) !== before) {
         const scene = game?.scene.getScene('Territory');
         scene?.scene.restart(sceneInit());
@@ -237,16 +321,14 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     api
       .quests(ch.serverId)
       .then((q) => {
-        const next = hasClaimable(q);
-        if (next !== questBadge) {
-          questBadge = next;
-          renderTop();
-        }
+        questBadge = hasClaimable(q);
+        applyTutorial(q.tutorial);
+        renderTop();
       })
       .catch(() => undefined);
 
   renderTop();
-  const wrap = h('div', { class: 'territory' }, topbar, gameRoot, dock, logBar);
+  const wrap = h('div', { class: 'territory' }, topbar, guideBox, gameRoot, dock, logBar);
 
   // Phaser는 DOM 삽입 이후에 시작
   setTimeout(async () => {

@@ -48,18 +48,6 @@
       }
     },
     {
-      "id": "t_upgrade",
-      "goal": {
-        "types": ["upgrade"],
-        "count": 1
-      },
-      "reward": {
-        "gold": 100,
-        "iron": 80,
-        "speedup": 10
-      }
-    },
-    {
       "id": "t_level2",
       "goal": {
         "state": "territoryLevel",
@@ -70,6 +58,18 @@
         "wood": 200,
         "stone": 150,
         "speedup": 30
+      }
+    },
+    {
+      "id": "t_upgrade",
+      "goal": {
+        "types": ["upgrade"],
+        "count": 1
+      },
+      "reward": {
+        "gold": 100,
+        "iron": 80,
+        "speedup": 10
       }
     }
   ],
