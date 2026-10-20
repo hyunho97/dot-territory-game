@@ -67,36 +67,44 @@ const fmt = (sec: number): string => {
 };
 
 /** 종족별 바닥 색: 잔디 밝은색/어두운색, 길(흙)색, 점 장식색 */
-const GROUND: Record<string, { light: string; dark: string; path: string; dots: string[] }> = {
+const GROUND: Record<
+  string,
+  { light: string; dark: string; path: string; dots: string[]; leaf: [string, string] }
+> = {
   human: {
     light: '#6f9a4a',
     dark: '#4f7a38',
     path: '#a58a5c',
     dots: ['#f2e27a', '#ffffff', '#e87a8a'],
+    leaf: ['#2f6a2e', '#4e9a3c'],
   },
   elf: {
     light: '#5a9a5e',
     dark: '#3a7448',
     path: '#8d9a6a',
     dots: ['#b9f2c8', '#fff2a8', '#c8a8f2'],
+    leaf: ['#1f5a3c', '#3f9a5a'],
   },
   dwarf: {
     light: '#7d7468',
     dark: '#5a5248',
     path: '#9c8468',
     dots: ['#c8b89a', '#8a8070', '#d89a4a'],
+    leaf: ['#2a4a38', '#47705a'],
   },
   undead: {
     light: '#555a66',
     dark: '#383c4a',
     path: '#6e6a7e',
     dots: ['#7ae8e8', '#9aa0b4', '#b8a8d8'],
+    leaf: ['#2b2733', '#4a4458'],
   },
   orc: {
     light: '#7e8a48',
     dark: '#5c6a34',
     path: '#9a7a4e',
     dots: ['#d86a3a', '#c8b078', '#a8442a'],
+    leaf: ['#4a5a24', '#7a8a3a'],
   },
 };
 
@@ -138,7 +146,7 @@ function drawTree(
   x: number,
   y: number,
   k: number,
-  g: { light: string; dark: string },
+  g: { leaf: [string, string] },
 ): void {
   ctx.globalAlpha = 0.28;
   ctx.fillStyle = '#000';
@@ -163,7 +171,7 @@ function drawTree(
   ctx.fillRect(x - 3 * k, y - 16 * k, 6 * k, 16 * k);
   if (race === 'elf' || race === 'dwarf') {
     for (let n = 0; n < 3; n++) {
-      ctx.fillStyle = n === 2 ? g.light : g.dark;
+      ctx.fillStyle = n === 2 ? g.leaf[1] : g.leaf[0];
       ctx.beginPath();
       ctx.moveTo(x, y - (52 - n * 0) * k + n * 14 * k - 8 * k);
       ctx.lineTo(x + (22 - n * 3) * k, y - 14 * k + n * 2 * k - (2 - n) * 8 * k);
@@ -173,9 +181,9 @@ function drawTree(
     }
   } else {
     for (const [dx, dy, r, c] of [
-      [-9, -26, 13, g.dark],
-      [9, -26, 13, g.dark],
-      [0, -36, 15, g.light],
+      [-9, -26, 13, g.leaf[0]],
+      [9, -26, 13, g.leaf[0]],
+      [0, -36, 15, g.leaf[1]],
     ] as const) {
       ctx.fillStyle = c;
       ctx.beginPath();
@@ -312,7 +320,8 @@ function drawGround(
           ctx.fillRect(px, py, 2, rand() < 0.15 ? 2 : 4);
         }
         // 내 땅 바깥은 숲
-        if (!land && rand() < 0.45)
+        // (땅 바로 바깥 한 칸은 나무 없이 비워 울타리가 숲에 묻히지 않게 한다)
+        if (!land && Math.max(Math.abs(i), Math.abs(j)) > R + 1 && rand() < 0.55)
           trees.push({ x: x + (rand() - 0.5) * 30, y, k: 0.9 + rand() * 0.5 });
       }
     }
@@ -620,7 +629,7 @@ export class TerritoryScene extends Phaser.Scene {
       const [cx, cy] = isoToScreen(rect.i + (rect.n - 1) / 2, rect.j + (rect.n - 1) / 2);
       const size = rect.n * TILE_W * 0.95;
       const x = cx;
-      const y = cy - size * 0.12;
+      const y = cy; // 건물 바닥이 터 한가운데에 닿도록 (이전엔 위로 떠 보였다)
       const key = buildingSpriteKey(manifest, spriteTiers, character.race, type, level);
       if (key && has(key)) this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
       const hits: Phaser.GameObjects.GameObject[] = [];
@@ -646,6 +655,16 @@ export class TerritoryScene extends Phaser.Scene {
       const poly = diamondPts(rect, 0.98);
       const cxy = (k: number): Phaser.Geom.Point[] =>
         poly.map((q) => new Phaser.Geom.Point(cx + (q.x - cx) * k, cy + (q.y - cy) * k));
+      // 건물이 땅에 닿은 느낌을 주는 접지 그림자(겹쳐 그려 가장자리를 부드럽게)
+      if (!opts.ghost) {
+        for (const [k, a] of [
+          [0.78, 0.12],
+          [0.58, 0.16],
+          [0.4, 0.2],
+        ] as const) {
+          plot.fillStyle(0x000000, a).fillEllipse(cx, cy, rect.n * TILE_W * k, rect.n * TILE_H * k);
+        }
+      }
       if (opts.ghost) {
         plot.fillStyle(0xffffff, 0.12).fillPoints(poly, true);
         plot.lineStyle(2, 0xe8b830, 0.85).strokePoints(poly, true);
@@ -680,14 +699,14 @@ export class TerritoryScene extends Phaser.Scene {
       if (opts.ghost) {
         img.setAlpha(0.01); // 눌러서 건설할 자리: 흐릿한 건물 그림 대신 깔끔한 터 표시
         const badge = this.add
-          .circle(x, y - size * 0.1, 17, 0x1a1428, 0.75)
+          .circle(x, y - size * 0.22, 17, 0x1a1428, 0.75)
           .setStrokeStyle(2, 0xe8b830);
         layer.add(badge);
         ghostObjs.push(badge);
         const plus = this.add
-          .text(x, y - size * 0.1, '+', { ...TEXT_STYLE, fontSize: '26px', strokeThickness: 0 })
+          .text(x, y - size * 0.22, '+', { ...TEXT_STYLE, fontSize: '26px', strokeThickness: 0 })
           .setOrigin(0.5);
-        tipY = y - size * 0.5;
+        tipY = y - size * 0.62;
         layer.add(plus);
         ghostObjs.push(plus);
         this.tweens.add({ targets: plus, alpha: 0.5, yoyo: true, repeat: -1, duration: 900 });
@@ -695,7 +714,7 @@ export class TerritoryScene extends Phaser.Scene {
       } else {
         if (constructing) img.setAlpha(0.55);
         const lvText = type === 'town_hall' ? level : (opts.b?.level ?? level);
-        tipY = y - size * 0.78;
+        tipY = y - size * 0.9;
         // 건물 아래에는 레벨만 작게, 이름은 마우스를 올리면 위에 표시
         pill(
           this.add
@@ -709,7 +728,7 @@ export class TerritoryScene extends Phaser.Scene {
         );
         if (constructing && has('buildings/under_construction')) {
           const uc = this.add
-            .image(x, y - size * 0.3, 'buildings/under_construction')
+            .image(x, y - size * 0.42, 'buildings/under_construction')
             .setDisplaySize(40, 40);
           layer.add(uc);
           hits.push(uc);
@@ -717,7 +736,7 @@ export class TerritoryScene extends Phaser.Scene {
         const fin = constructing ? opts.b?.finishAt : upgrading ? opts.b?.upgradeFinishAt : null;
         if (fin) {
           const tx = this.add
-            .text(x, y - size * 0.78, '', {
+            .text(x, y - size * 0.9, '', {
               ...smallText,
               fontSize: '13px',
               color: '#ffd54f',
