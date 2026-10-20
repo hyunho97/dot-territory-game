@@ -3,15 +3,15 @@ import Phaser from 'phaser';
 import type { BuildingData, CharacterState, UnitData } from '../api/client';
 import { t } from '../i18n';
 import { buildingSpriteKey } from '../ui/buildingSprite';
-import { RINGS, SLOT_POS, slotOf } from './layout';
+import { FREE_TILES, GRID, SLOT_POS, TILE_H, TILE_W, isoToScreen, isRoad, slotOf } from './layout';
 
 // 세계(건물이 놓이는 좌표계) 크기. 화면 크기는 가로/세로 모드에 따라 다르다.
 const WIDTH = 960;
 const HEIGHT = 600;
 const ZOOM = 2; // 실제 캔버스 해상도 배율
 const MAX_IMAGE_LEVEL = 10;
-const SPRITE = 96; // 일반 건물 표시 크기
-const HALL = 150; // 영주관 표시 크기
+const SPRITE = 104; // 일반 건물 표시 크기
+const HALL = 170; // 영주관 표시 크기
 
 export interface TerritoryInit {
   character: CharacterState;
@@ -98,105 +98,174 @@ function rng(seed: number): () => number {
   };
 }
 
-/** 마을 바닥 그림(잔디 얼룩 + 풀/꽃 점 + 영주관에서 건물로 뻗는 흙길)을 캔버스로 직접 그린다 */
-function drawGround(
-  tex: Phaser.Textures.CanvasTexture,
+/** 두 색(#rrggbb)을 t 비율로 섞는다 */
+function mixHex(a: string, b: string, t: number): string {
+  const ch = (h: string, k: number): number => parseInt(h.slice(1 + k * 2, 3 + k * 2), 16);
+  const c = (k: number): number => Math.round(ch(a, k) + (ch(b, k) - ch(a, k)) * t);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+
+/** 등각 칸(마름모) 하나를 칠한다 (이음매가 안 보이게 살짝 크게) */
+function diamond(ctx: CanvasRenderingContext2D, x: number, y: number, grow = 1): void {
+  const w = TILE_W / 2 + grow;
+  const h = TILE_H / 2 + grow / 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y - h);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x - w, y);
+  ctx.closePath();
+}
+
+/** 나무 한 그루 (종족별 모양: 엘프·드워프=침엽수, 언데드=마른 나무, 그 외=활엽수) */
+function drawTree(
+  ctx: CanvasRenderingContext2D,
   race: string,
-  hall: [number, number],
+  x: number,
+  y: number,
+  k: number,
+  g: { light: string; dark: string },
 ): void {
+  ctx.globalAlpha = 0.28;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 16 * k, 6 * k, 0, 0, 7);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  if (race === 'undead') {
+    ctx.strokeStyle = '#2b2733';
+    ctx.lineWidth = 4 * k;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 40 * k);
+    ctx.moveTo(x, y - 24 * k);
+    ctx.lineTo(x - 14 * k, y - 38 * k);
+    ctx.moveTo(x, y - 30 * k);
+    ctx.lineTo(x + 12 * k, y - 46 * k);
+    ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = '#4a3322';
+  ctx.fillRect(x - 3 * k, y - 16 * k, 6 * k, 16 * k);
+  if (race === 'elf' || race === 'dwarf') {
+    for (let n = 0; n < 3; n++) {
+      ctx.fillStyle = n === 2 ? g.light : g.dark;
+      ctx.beginPath();
+      ctx.moveTo(x, y - (52 - n * 0) * k + n * 14 * k - 8 * k);
+      ctx.lineTo(x + (22 - n * 3) * k, y - 14 * k + n * 2 * k - (2 - n) * 8 * k);
+      ctx.lineTo(x - (22 - n * 3) * k, y - 14 * k + n * 2 * k - (2 - n) * 8 * k);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    for (const [dx, dy, r, c] of [
+      [-9, -26, 13, g.dark],
+      [9, -26, 13, g.dark],
+      [0, -36, 15, g.light],
+    ] as const) {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.arc(x + dx * k, y + dy * k, r * k, 0, 7);
+      ctx.fill();
+    }
+  }
+}
+
+/** 마을 바닥(등각 칸: 잔디·건물 터·도로)과 나무 같은 장식을 캔버스로 직접 그린다 */
+function drawGround(tex: Phaser.Textures.CanvasTexture, race: string): void {
   const g = GROUND[race] ?? GROUND.human;
   const ctx = tex.getContext();
   const rand = rng([...race].reduce((n, c) => n * 31 + c.charCodeAt(0), 7));
   ctx.fillStyle = g.dark;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  // 큰 얼룩으로 단조로움 줄이기
-  for (let i = 0; i < 140; i++) {
-    ctx.fillStyle = rand() < 0.5 ? g.light : g.dark;
-    ctx.globalAlpha = 0.16;
-    ctx.beginPath();
-    ctx.ellipse(rand() * WIDTH, rand() * HEIGHT, 40 + rand() * 90, 24 + rand() * 50, 0, 0, 7);
-    ctx.fill();
-  }
-  // 흙길: 겹선으로 가장자리를 부드럽게
-  const road = (x1: number, y1: number, x2: number, y2: number, w: number): void => {
-    for (const [mul, a] of [
-      [1.5, 0.12],
-      [1.15, 0.25],
-      [0.8, 0.55],
-    ] as const) {
-      ctx.strokeStyle = g.path;
-      ctx.globalAlpha = a;
-      ctx.lineWidth = w * mul;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.quadraticCurveTo(
-        (x1 + x2) / 2 + (y2 - y1) * 0.08,
-        (y1 + y2) / 2 - (x2 - x1) * 0.08,
-        x2,
-        y2,
-      );
-      ctx.stroke();
+  const trees: { x: number; y: number; k: number }[] = [];
+  const R = 13;
+  for (let i = -R; i <= R; i++) {
+    for (let j = -R; j <= R; j++) {
+      const [x, y] = isoToScreen(i, j);
+      if (x < -TILE_W || x > WIDTH + TILE_W || y < -TILE_H || y > HEIGHT + TILE_H) continue;
+      const inGrid = Math.abs(i) <= GRID && Math.abs(j) <= GRID;
+      const road = inGrid && isRoad(i, j);
+      const lot = inGrid && !road;
+      // 칸 바탕
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = road ? g.path : mixHex(g.dark, g.light, 0.45 + rand() * 0.2);
+      diamond(ctx, x, y);
+      ctx.fill();
+      // 칸마다 살짝 다른 밝기
+      ctx.globalAlpha = 0.03 + rand() * 0.05;
+      ctx.fillStyle = rand() < 0.5 ? '#fff' : '#000';
+      diamond(ctx, x, y, 0);
+      ctx.fill();
+      if (road) {
+        // 도로 테두리와 자갈
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        diamond(ctx, x, y, -1);
+        ctx.stroke();
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = '#fff';
+        for (let n = 0; n < 5; n++) {
+          ctx.fillRect(x + (rand() - 0.5) * 60, y + (rand() - 0.5) * 24, 3, 2);
+        }
+      } else {
+        if (lot) {
+          // 건물 터: 조금 밝게 + 얇은 테두리
+          ctx.globalAlpha = 0.2;
+          ctx.fillStyle = '#fff';
+          diamond(ctx, x, y, -2);
+          ctx.fill();
+          ctx.globalAlpha = 0.28;
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          diamond(ctx, x, y, -3);
+          ctx.stroke();
+        }
+        // 풀/꽃 점
+        for (let n = 0; n < 6; n++) {
+          const px = x + (rand() - 0.5) * 70;
+          const py = y + (rand() - 0.5) * 28;
+          ctx.globalAlpha = 0.55;
+          ctx.fillStyle = rand() < 0.15 ? g.dots[Math.floor(rand() * g.dots.length)] : g.light;
+          ctx.fillRect(px, py, 2, rand() < 0.15 ? 2 : 4);
+        }
+        // 격자 바깥(마을 둘레)에는 나무를 빽빽하게
+        if (!inGrid && rand() < 0.42)
+          trees.push({ x: x + (rand() - 0.5) * 30, y, k: 0.9 + rand() * 0.5 });
+      }
     }
-  };
-  // 건물이 놓인 안쪽·가운데 고리를 따라 도는 길 + 영주관 앞 남쪽 입구길
-  for (const ring of RINGS.slice(0, 2)) {
-    for (const [mul, a] of [
-      [20, 0.12],
-      [14, 0.25],
-      [8, 0.5],
-    ] as const) {
-      ctx.strokeStyle = g.path;
-      ctx.globalAlpha = a;
-      ctx.lineWidth = mul;
-      ctx.beginPath();
-      ctx.ellipse(480, 305, ring.a, ring.b, 0, 0, 7);
-      ctx.stroke();
-    }
   }
-  road(hall[0], hall[1], hall[0], HEIGHT + 20, 26);
-  // 영주관 앞 광장
-  for (const [mul, a] of [
-    [1.0, 0.18],
-    [0.82, 0.3],
-    [0.64, 0.55],
-  ] as const) {
-    ctx.fillStyle = g.path;
-    ctx.globalAlpha = a;
-    ctx.beginPath();
-    ctx.ellipse(hall[0], hall[1] - 10, 190 * mul, 105 * mul, 0, 0, 7);
-    ctx.fill();
-  }
-  // 자잘한 풀/꽃/돌 점
-  for (let i = 0; i < 450; i++) {
-    const x = rand() * WIDTH;
-    const y = rand() * HEIGHT;
-    const k = rand();
-    ctx.globalAlpha = 0.5;
-    if (k < 0.62) {
-      ctx.fillStyle = rand() < 0.5 ? g.light : 'rgba(0,0,0,0.25)';
-      ctx.fillRect(x, y, 2, 4 + rand() * 3);
-    } else if (k < 0.9) {
-      ctx.fillStyle = g.light;
-      ctx.fillRect(x, y, 4, 2);
+  // 쓰지 않는 남는 터에는 작은 나무/덤불
+  for (const [i, j] of FREE_TILES) {
+    const [x, y] = isoToScreen(i, j);
+    if (Math.abs(i) <= 1 && Math.abs(j) <= 1) {
+      // 영주관 둘레 정원: 꽃밭
+      for (let n = 0; n < 16; n++) {
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = g.dots[Math.floor(rand() * g.dots.length)];
+        ctx.beginPath();
+        ctx.arc(x + (rand() - 0.5) * 70, y + (rand() - 0.5) * 28, 2.5, 0, 7);
+        ctx.fill();
+      }
     } else {
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = g.dots[Math.floor(rand() * g.dots.length)];
-      ctx.fillRect(x, y, 3, 3);
+      trees.push({ x, y: y + 6, k: 0.8 });
     }
   }
+  trees.sort((p, q) => p.y - q.y);
+  for (const tr of trees) drawTree(ctx, race, tr.x, tr.y, tr.k, g);
   // 가장자리 어둡게(비네팅)
   ctx.globalAlpha = 1;
   const vg = ctx.createRadialGradient(
     WIDTH / 2,
     HEIGHT / 2,
-    HEIGHT * 0.35,
+    HEIGHT * 0.4,
     WIDTH / 2,
     HEIGHT / 2,
     WIDTH * 0.62,
   );
   vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
   tex.refresh();
@@ -342,7 +411,7 @@ export class TerritoryScene extends Phaser.Scene {
     // ── 바닥: 종족별 색의 잔디 + 영주관에서 뻗는 흙길 ──
     const groundTex = this.textures.createCanvas(`ground_${Date.now()}`, WIDTH, HEIGHT);
     if (groundTex) {
-      drawGround(groundTex, character.race, SLOT_POS[SLOT_POS.length - 1]);
+      drawGround(groundTex, character.race);
       this.add.image(WIDTH / 2, HEIGHT / 2, groundTex);
     } else {
       this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH * 3, HEIGHT * 3, 0x2c4a2a);
@@ -354,6 +423,8 @@ export class TerritoryScene extends Phaser.Scene {
 
     // ── 건물 레이어 ──
     const layer = this.add.container(0, 0);
+    // 건물 이름표(마우스를 올렸을 때만 보임)는 모든 건물보다 위에 그린다
+    const overlay = this.add.container(0, 0).setDepth(3);
 
     const placeSprite = (
       type: string,
@@ -386,8 +457,30 @@ export class TerritoryScene extends Phaser.Scene {
       }
       hits.push(img);
       // 바닥 그림자
-      layer.add(this.add.ellipse(x, y + size * 0.18, size * 0.86, size * 0.24, 0x000000, 0.14));
-      layer.add(this.add.ellipse(x, y + size * 0.18, size * 0.64, size * 0.15, 0x000000, 0.28));
+      // 건물이 서 있는 터(등각 마름모): 지은 건물은 돌 바닥, 빈 터는 금색 테두리
+      const fx = x;
+      const fy = y + size * 0.12;
+      const dw = (type === 'town_hall' ? TILE_W * 1.25 : TILE_W * 0.94) / 2;
+      const dh = dw / 2;
+      const plot = this.add.graphics();
+      const poly = [
+        new Phaser.Geom.Point(fx, fy - dh),
+        new Phaser.Geom.Point(fx + dw, fy),
+        new Phaser.Geom.Point(fx, fy + dh),
+        new Phaser.Geom.Point(fx - dw, fy),
+      ];
+      if (opts.ghost) {
+        plot.fillStyle(0xffffff, 0.12).fillPoints(poly, true);
+        plot.lineStyle(2, 0xe8b830, 0.85).strokePoints(poly, true);
+      } else {
+        plot.fillStyle(0x000000, 0.22).fillPoints(poly, true);
+        plot.fillStyle(0xb8b2a4, 0.5).fillPoints(
+          poly.map((q) => new Phaser.Geom.Point(fx + (q.x - fx) * 0.9, fy + (q.y - fy) * 0.9)),
+          true,
+        );
+        plot.lineStyle(2, 0x000000, 0.35).strokePoints(poly, true);
+      }
+      layer.add(plot);
       layer.add(img);
 
       const constructing = !!opts.b && opts.b.finishAt !== null && opts.b.finishAt > this.nowMs();
@@ -397,7 +490,7 @@ export class TerritoryScene extends Phaser.Scene {
       // 글자 뒤에 둥근 이름표를 깔아 어떤 바닥 위에서도 읽히게
       const pill = (tx: Phaser.GameObjects.Text, accent = 0x000000): void => {
         const bg = this.add.graphics();
-        bg.fillStyle(accent, 0.55);
+        bg.fillStyle(accent, 0.4);
         bg.fillRoundedRect(
           tx.x - tx.width / 2 - 6,
           tx.y - tx.height / 2 - 1,
@@ -408,32 +501,31 @@ export class TerritoryScene extends Phaser.Scene {
         layer.add(bg);
         layer.add(tx);
       };
+      let tipY = y;
       if (opts.ghost) {
         img.setAlpha(0.01); // 눌러서 건설할 자리: 흐릿한 건물 그림 대신 깔끔한 터 표시
-        layer.add(
-          this.add
-            .ellipse(x, y + size * 0.1, size * 0.9, size * 0.34, 0xffffff, 0.14)
-            .setStrokeStyle(2, 0xffffff, 0.55),
-        );
         layer.add(
           this.add.circle(x, y - size * 0.1, 17, 0x1a1428, 0.75).setStrokeStyle(2, 0xe8b830),
         );
         const plus = this.add
           .text(x, y - size * 0.1, '+', { ...TEXT_STYLE, fontSize: '26px', strokeThickness: 0 })
           .setOrigin(0.5);
-        const label = this.add
-          .text(x, y + size * 0.26, t(`building.${type}`), smallText)
-          .setOrigin(0.5);
-        pill(label);
+        tipY = y - size * 0.5;
         layer.add(plus);
         this.tweens.add({ targets: plus, alpha: 0.5, yoyo: true, repeat: -1, duration: 900 });
         hits.push(plus);
       } else {
         if (constructing) img.setAlpha(0.55);
         const lvText = type === 'town_hall' ? level : (opts.b?.level ?? level);
+        tipY = y - size * 0.78;
+        // 건물 아래에는 레벨만 작게, 이름은 마우스를 올리면 위에 표시
         pill(
           this.add
-            .text(x, y + size * 0.26, `${t(`building.${type}`)} Lv.${lvText}`, smallText)
+            .text(x, y + size * 0.2, `Lv.${lvText}`, {
+              ...smallText,
+              fontSize: '11px',
+              strokeThickness: 2,
+            })
             .setOrigin(0.5),
           0x1a1428,
         );
@@ -458,13 +550,45 @@ export class TerritoryScene extends Phaser.Scene {
         }
       }
       // 클릭/호버
+      const tipText = this.add
+        .text(x, tipY, t(`building.${type}`), { ...smallText, fontSize: '14px' })
+        .setOrigin(0.5);
+      const tip = this.add.container(0, 0, [
+        this.add
+          .graphics()
+          .fillStyle(0x1a1428, 0.9)
+          .fillRoundedRect(
+            x - tipText.width / 2 - 8,
+            tipY - tipText.height / 2 - 2,
+            tipText.width + 16,
+            tipText.height + 4,
+            8,
+          )
+          .lineStyle(1, 0xe8b830, 0.9)
+          .strokeRoundedRect(
+            x - tipText.width / 2 - 8,
+            tipY - tipText.height / 2 - 2,
+            tipText.width + 16,
+            tipText.height + 4,
+            8,
+          ),
+        tipText,
+      ]);
+      tip.setVisible(false);
+      overlay.add(tip);
       for (const o of hits) {
         o.setInteractive({ useHandCursor: true });
         o.on('pointerup', () => {
           if (!dragged) this.init_.onBuildingClick?.(type);
         });
-        o.on('pointerover', () => (img as Phaser.GameObjects.Image).setTint?.(0xffffcc));
-        o.on('pointerout', () => (img as Phaser.GameObjects.Image).clearTint?.());
+        o.on('pointerover', () => {
+          (img as Phaser.GameObjects.Image).setTint?.(0xffffcc);
+          tip.setVisible(true);
+        });
+        o.on('pointerout', () => {
+          (img as Phaser.GameObjects.Image).clearTint?.();
+          tip.setVisible(false);
+        });
       }
       if (this.init_.highlightType === type) {
         const ring = this.add
