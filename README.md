@@ -91,3 +91,16 @@ tools/         process_sprites.py
 - 완료 알림(웹 푸시): 상단 바 "알림 켜기" → 건설/업그레이드/레벨업/연구/모집/제작/탐험이 끝나면 푸시. 서버는 20초마다 끝난 타이머를 점검한다. VAPID 키는 처음 실행 때 자동 생성되어 DB(app_kv)에 저장된다. 발신자 표기는 `VAPID_SUBJECT`(mailto:...) 환경변수로 바꾼다.
 - **서비스 워커/푸시는 HTTPS(또는 localhost)에서만 동작**한다. 같은 와이파이의 폰에서 `http://PC주소:5173` 으로 접속하면 레이아웃은 확인할 수 있지만 설치/알림은 안 된다. 배포 시 HTTPS 필요. iPhone 은 "홈 화면에 추가"로 설치한 앱에서만 알림이 켜진다(iOS 16.4+).
 - 점검 스크립트: `node --import tsx tools/push_check.ts` (임시 DB, 실제 전송 없음)
+
+## 혼자 하는 웹판 (서버·로그인 없음)
+서버 코드를 브라우저 안에서 그대로 실행하는 빌드다. 계정/로그인이 없고, 진행 상황은 브라우저(IndexedDB)에 자동 저장된다.
+- 개발: `npm run dev:local` (http://localhost:5174) · 빌드: `npm run build:local` → `client/dist-local` (정적 파일, 하위 경로에 올려도 동작)
+- 구조: `client/vite.local.config.ts` 가 `node:sqlite`→sql.js(WASM), `node:fs`→빌드에 묶은 `data/*.json`, `node:crypto/url/path`→작은 대역으로 바꿔 끼운다. `client/src/local/localApp.ts` 는 Fastify 의 작은 대역이라 서버 라우트(`registerRoutes`)를 수정 없이 실행한다.
+- 다른 플레이어 기능은 가상 플레이어(NPC)로 대체: `server/src/services/npcService.ts`
+  - NPC 는 진짜 캐릭터 행(`users.is_npc=1`)이라 랭킹·결투(PvP)·길드가 기존 코드 그대로 동작한다. 영지 레벨은 실제 진행 속도(Lv.10 ≈ 1년)에 맞춰 자라고, 공격받아 줄어든 병력/자원은 다시 채워진다.
+  - 길드: NPC 길드 4곳(가입 가능). 직접 길드를 만들면 비슷한 레벨의 NPC 길드원 4명이 함께한다.
+  - 길드 보스: NPC 리더 길드는 보스를 알아서 소환하고, NPC 길드원이 시간 단위로 하루 평균 1회 공격한다.
+- 저장: 상단 "저장 관리"에서 저장 파일(.sqlite) 내보내기/불러오기/처음부터 다시 시작. 브라우저 데이터를 지우면 진행도가 사라지므로 가끔 내보내 두기.
+- 치트(테스트): 주소 끝에 `#admin` 을 붙이면 하단 메뉴에 "관리자" 도구가 생긴다.
+- 배포: `.github/workflows/pages.yml` 이 main 푸시 때 GitHub Pages 에 올린다. 저장소를 공개로 바꾸고, 설정 > Pages > Source 를 "GitHub Actions" 로 지정하면 `https://<계정>.github.io/<저장소>/` 로 접속할 수 있다. (비공개 저장소의 Pages 는 유료 플랜 필요)
+- 온라인(서버) 판은 그대로 남아 있다: `npm run dev` / `npm run start:prod`.

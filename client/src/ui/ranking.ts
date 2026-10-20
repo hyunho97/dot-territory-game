@@ -1,3 +1,4 @@
+import { LOCAL } from 'virtual:local-boot';
 import { api } from '../api/client';
 import type { RankRow, RankingState } from '../api/client';
 import { t } from '../i18n';
@@ -55,6 +56,7 @@ export function openRankingPanel(ctx: PanelCtx): void {
         label,
       );
     body.replaceChildren(
+      LOCAL ? h('div', { class: 'muted' }, t('npc.note')) : '',
       h(
         'div',
         { class: 'row', style: 'justify-content:flex-start;margin-bottom:8px' },

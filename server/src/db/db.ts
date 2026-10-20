@@ -149,6 +149,17 @@ const eqCols = (db.prepare('PRAGMA table_info(equipment)').all() as { name: stri
 if (!eqCols.includes('enhance'))
   db.exec('ALTER TABLE equipment ADD COLUMN enhance INTEGER NOT NULL DEFAULT 0');
 
+const guildCols = (db.prepare('PRAGMA table_info(guilds)').all() as { name: string }[]).map(
+  (c) => c.name,
+);
+if (!guildCols.includes('npc_portion'))
+  db.exec('ALTER TABLE guilds ADD COLUMN npc_portion REAL NOT NULL DEFAULT 0');
+const bossCols = (db.prepare('PRAGMA table_info(guild_boss)').all() as { name: string }[]).map(
+  (c) => c.name,
+);
+if (!bossCols.includes('npc_sim_at'))
+  db.exec('ALTER TABLE guild_boss ADD COLUMN npc_sim_at INTEGER');
+
 if (!charCols.includes('last_attack_at'))
   db.exec('ALTER TABLE characters ADD COLUMN last_attack_at INTEGER');
 if (!charCols.includes('protection_until'))
@@ -193,6 +204,7 @@ for (const [name, type] of [
   ['pw_hash', 'TEXT'],
   ['pw_salt', 'TEXT'],
   ['is_admin', 'INTEGER'],
+  ['is_npc', 'INTEGER NOT NULL DEFAULT 0'],
 ] as const) {
   if (!userCols.includes(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${type}`);
 }

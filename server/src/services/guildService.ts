@@ -11,6 +11,7 @@ import {
 } from './guildRules.js';
 import { dayKey } from './questEvents.js';
 import { GameError, settle } from './territoryService.js';
+import { npcEnabled, recruitNpcMembers } from './npcService.js';
 
 const RES = ['food', 'wood', 'stone', 'iron', 'gold'] as const;
 type Res = (typeof RES)[number];
@@ -167,6 +168,7 @@ export function createGuild(characterId: number, rawName: unknown): void {
     .get(characterId) as Record<string, number>;
   for (const [k, v] of Object.entries(guildData.createCost))
     if (res[k] < v) throw new GameError('NOT_ENOUGH_RESOURCES');
+  let newGuildId = 0;
   transaction(() => {
     for (const [k, v] of Object.entries(guildData.createCost))
       db.prepare(`UPDATE resources SET ${k} = ${k} - ? WHERE character_id = ?`).run(v, characterId);
@@ -174,12 +176,15 @@ export function createGuild(characterId: number, rawName: unknown): void {
     const info = db
       .prepare('INSERT INTO guilds (server_id, name, leader_id, created_at) VALUES (?,?,?,?)')
       .run(c.server_id, name, characterId, now);
+    newGuildId = Number(info.lastInsertRowid);
     db.prepare('INSERT INTO guild_members (character_id, guild_id, joined_at) VALUES (?,?,?)').run(
       characterId,
-      Number(info.lastInsertRowid),
+      newGuildId,
       now,
     );
   });
+  // 혼자 하는 판: 비슷한 레벨의 가상 길드원이 함께한다
+  if (npcEnabled()) recruitNpcMembers(newGuildId, c.territory_level);
 }
 
 export function joinGuild(characterId: number, guildId: number): void {

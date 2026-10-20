@@ -1,3 +1,4 @@
+import { LOCAL } from 'virtual:local-boot';
 import { api } from '../api/client';
 import type { GuildListItem, GuildState } from '../api/client';
 import { t } from '../i18n';
@@ -286,6 +287,7 @@ export function openGuildPanel(ctx: PanelCtx): void {
         : '';
     levelUpIcon = false;
     body.replaceChildren(
+      LOCAL ? h('div', { class: 'muted' }, t('npc.note')) : '',
       banner,
       up,
       ...(state.guild ? renderGuild(state) : renderNoGuild(state)),

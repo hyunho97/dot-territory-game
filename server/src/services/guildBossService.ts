@@ -29,6 +29,7 @@ interface BossRow {
   ends_at: number;
   status: 'active' | 'won' | 'lost';
   finished_at: number | null;
+  npc_sim_at: number | null;
 }
 interface PartRow {
   character_id: number;
@@ -148,6 +149,7 @@ export function bossState(characterId: number) {
   settle(characterId);
   const now = Date.now();
   const g = myGuild(characterId);
+  npcBossTick(g.id, now);
   const level = guildLevel(g.exp);
   const boss = activeBoss(g.id, now);
   const last = lastFinished(g.id);
@@ -207,26 +209,96 @@ export function summonBoss(characterId: number): void {
   settle(characterId);
   const now = Date.now();
   const g = myGuild(characterId);
+  npcBossTick(g.id, now);
   if (g.leader_id !== characterId) throw new GameError('NOT_GUILD_LEADER', 403);
   if (activeBoss(g.id, now)) throw new GameError('BOSS_ALREADY_ACTIVE');
   const last = lastFinished(g.id);
   if (last?.finished_at && now < last.finished_at + guildBossData.summonCooldownHours * 3_600_000)
     throw new GameError('BOSS_COOLDOWN');
-  const tier = tierFor(guildLevel(g.exp));
+  createBoss(g.id, g.exp, now);
+}
+
+function createBoss(guildId: number, guildExp: number, now: number): void {
+  const tier = tierFor(guildLevel(guildExp));
   const members = db
     .prepare('SELECT character_id FROM guild_members WHERE guild_id = ?')
-    .all(g.id) as unknown as { character_id: number }[];
+    .all(guildId) as unknown as { character_id: number }[];
   const sum = members.reduce((s, m) => s + memberCP(m.character_id), 0);
   const hp = bossHp(sum, tier);
   db.prepare(
-    'INSERT INTO guild_boss (guild_id, tier, hp_max, hp, started_at, ends_at) VALUES (?,?,?,?,?,?)',
-  ).run(g.id, tier.id, hp, hp, now, now + guildBossData.durationHours * 3_600_000);
+    'INSERT INTO guild_boss (guild_id, tier, hp_max, hp, started_at, ends_at, npc_sim_at) VALUES (?,?,?,?,?,?,?)',
+  ).run(guildId, tier.id, hp, hp, now, now + guildBossData.durationHours * 3_600_000, now);
+}
+
+/**
+ * 혼자 하는 판의 가상 길드원 처리 (온라인 판에는 NPC 가 없어 아무 일도 하지 않는다).
+ *  - 리더가 NPC 인 길드는 쿨타임이 끝나면 보스를 알아서 소환한다.
+ *  - 보스가 떠 있는 동안 NPC 길드원이 "하루 평균 1번" 공격한다 (참여율 50% × 하루 2회 기준, 시간 단위로 계산).
+ */
+function npcBossTick(guildId: number, now: number): void {
+  const g = db.prepare('SELECT id, leader_id, exp FROM guilds WHERE id = ?').get(guildId) as
+    { id: number; leader_id: number; exp: number } | undefined;
+  if (!g) return;
+  const npcs = db
+    .prepare(
+      `SELECT m.character_id AS id FROM guild_members m JOIN characters c ON c.id = m.character_id
+       JOIN users u ON u.id = c.user_id WHERE m.guild_id = ? AND u.is_npc = 1`,
+    )
+    .all(guildId) as unknown as { id: number }[];
+  if (npcs.length === 0) return;
+  let boss = activeBoss(guildId, now);
+  const leaderIsNpc = npcs.some((n) => n.id === g.leader_id);
+  if (!boss && leaderIsNpc) {
+    const last = lastFinished(guildId);
+    if (
+      !last?.finished_at ||
+      now >= last.finished_at + guildBossData.summonCooldownHours * 3_600_000
+    ) {
+      createBoss(guildId, g.exp, now);
+      boss = activeBoss(guildId, now);
+    }
+  }
+  if (!boss) return;
+  const from = boss.npc_sim_at ?? boss.started_at;
+  const to = Math.min(now, boss.ends_at);
+  const hours = Math.min(72, Math.floor((to - from) / 3_600_000));
+  if (hours <= 0) return;
+  const cps = npcs.map((n) => ({ id: n.id, cp: memberCP(n.id) }));
+  const today = dayKey();
+  let hp = boss.hp;
+  let killed = false;
+  transaction(() => {
+    for (let h = 0; h < hours && !killed; h++) {
+      for (const n of cps) {
+        if (Math.random() >= 1 / 24) continue;
+        const dmg = rollDamage(n.cp);
+        hp = Math.max(0, hp - dmg);
+        db.prepare(
+          `INSERT INTO guild_boss_part (boss_id, character_id, damage, attacks, day, day_attacks)
+           VALUES (?,?,?,1,?,1)
+           ON CONFLICT(boss_id, character_id) DO UPDATE SET damage = damage + excluded.damage,
+             attacks = attacks + 1`,
+        ).run(boss.id, n.id, dmg, today);
+        if (hp <= 0) {
+          killed = true;
+          break;
+        }
+      }
+    }
+    db.prepare('UPDATE guild_boss SET hp = ?, npc_sim_at = ? WHERE id = ?').run(
+      hp,
+      from + hours * 3_600_000,
+      boss.id,
+    );
+    if (killed) finish({ ...boss, hp: 0 }, true, now);
+  });
 }
 
 export function attackBoss(characterId: number, selection: Record<string, number>) {
   settle(characterId);
   const now = Date.now();
   const g = myGuild(characterId);
+  npcBossTick(g.id, now);
   const boss = activeBoss(g.id, now);
   if (!boss) throw new GameError('NO_ACTIVE_BOSS');
   const today = dayKey();

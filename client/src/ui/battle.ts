@@ -1,3 +1,4 @@
+import { LOCAL } from 'virtual:local-boot';
 import { assetUrl } from '../assetUrl';
 import { api } from '../api/client';
 import type { BattleOutcome, PvpTarget, StageInfo } from '../api/client';
@@ -84,6 +85,7 @@ export function openBattlePanel(ctx: PanelCtx): void {
     const protectedLeft = (info.protectedUntil - nowS()) / 1000;
     const items: HTMLElement[] = [
       tabs(),
+      ...(LOCAL ? [h('div', { class: 'muted' }, t('npc.note'))] : []),
       h(
         'div',
         { class: 'muted' },
