@@ -5,6 +5,7 @@ import { h } from './dom';
 import { RES_COLORS, errMsg, fmtDuration, openModal } from './panels';
 import type { PanelCtx } from './panels';
 import { playBattle } from './battleScene';
+import { playBattle as playBattleMusic, stopBattle as stopBattleMusic } from '../audio';
 
 const W = 720;
 const H = 360;
@@ -31,6 +32,7 @@ export function openBattlePanel(ctx: PanelCtx): void {
     () => {
       cancelled = true;
       stopAnim();
+      stopBattleMusic();
     },
     true,
   );
@@ -372,7 +374,11 @@ export function openBattlePanel(ctx: PanelCtx): void {
       () => showResult(op, out),
     );
     stopAnim = player.stop;
-    skip.addEventListener('click', () => player.skip());
+    playBattleMusic();
+    skip.addEventListener('click', () => {
+      stopBattleMusic();
+      player.skip();
+    });
   };
 
   const showResult = (op: Opponent, out: BattleOutcome) => {

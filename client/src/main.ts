@@ -14,6 +14,7 @@ import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
+import { onSoundChange, playSfx, setSoundEnabled, soundEnabled, startBgm } from './audio';
 import {
   canInstall,
   disablePush,
@@ -99,6 +100,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     manifest,
     spriteTiers,
     highlightType: highlightBuilding(tutorialStep()),
+    onTimerDone: () => void ctx.refresh().catch(() => undefined),
     onBuildingClick: (type: string) => {
       const s = tutorialStep();
       if (s && s.target !== 'territory') return; // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
@@ -260,6 +262,11 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       chip(workerEl),
       chip(t('territory.troopsFmt', { n: ch.totalTroops, max: ch.maxTroops })),
       chip(`${t('territory.cp')} ${ch.totalCP}`),
+      h(
+        'button',
+        { class: 'btn small', onclick: () => setSoundEnabled(!soundEnabled()) },
+        soundEnabled() ? t('territory.soundOn') : t('territory.soundOff'),
+      ),
       ...(pushSupported() || isIOS()
         ? [
             h(
@@ -368,7 +375,19 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
           tutorialStep()?.id ?? null,
         ]);
       const before = sig(ch);
+      const prev = ch;
       ch = withPreview(await api.me(ch.serverId, true)); // 접속 중 하트비트 포함
+      // 건설/업그레이드/영지 레벨업이 끝났으면 효과음
+      const nowMs = ch.serverNow;
+      const busy = (b: CharacterState['buildings'][number], at: number): boolean =>
+        (b.finishAt !== null && b.finishAt > at) ||
+        (b.upgradeFinishAt !== null && b.upgradeFinishAt > at);
+      const finishedBuilding = prev.buildings.some((b) => {
+        if (!busy(b, prev.serverNow)) return false;
+        const cur = ch.buildings.find((x) => x.id === b.id);
+        return !!cur && !busy(cur, nowMs);
+      });
+      if (finishedBuilding || ch.territoryLevel > prev.territoryLevel) playSfx('upgrade');
       renderTop();
       if (tutorialStep()) void refreshQuestBadge(); // 튜토리얼 진행도 반영
       if (sig(ch) !== before) {
@@ -403,7 +422,10 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     pushOn = on;
     renderTop();
   });
-  onPwaChange(() => renderTop());
+  const alive = () => document.body.contains(wrap);
+  onPwaChange(() => alive() && renderTop());
+  onSoundChange(() => alive() && renderTop());
+  startBgm();
   const wrap = h('div', { class: 'territory' }, topbar, guideBox, gameRoot, dock, logBar);
 
   // Phaser는 DOM 삽입 이후에 시작

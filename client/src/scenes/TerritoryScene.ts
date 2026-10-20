@@ -19,6 +19,8 @@ export interface TerritoryInit {
   spriteTiers: number[];
   /** 건물 이미지를 클릭했을 때 (건설/업그레이드 창 열기) */
   onBuildingClick?: (type: string) => void;
+  /** 화면에 표시 중이던 건설/업그레이드 타이머가 끝났을 때 (서버 상태를 다시 받아 오기 위함) */
+  onTimerDone?: () => void;
   /** 튜토리얼 등에서 강조할 건물 종류 */
   highlightType?: string | null;
 }
@@ -55,6 +57,7 @@ export class TerritoryScene extends Phaser.Scene {
   private init_!: TerritoryInit;
   private imageKey = '';
   private initWall = 0;
+  private doneSignaled = false;
   private timers: { text: Phaser.GameObjects.Text; finishAt: number; prefix: string }[] = [];
 
   constructor() {
@@ -64,6 +67,7 @@ export class TerritoryScene extends Phaser.Scene {
   init(data: TerritoryInit): void {
     this.init_ = data;
     this.timers = [];
+    this.doneSignaled = false;
     this.initWall = Date.now();
   }
 
@@ -359,7 +363,15 @@ export class TerritoryScene extends Phaser.Scene {
     // 남은 시간 갱신 (1초마다)
     const tick = (): void => {
       const n = this.nowMs();
-      for (const tm of this.timers) tm.text.setText(`${tm.prefix}${fmt((tm.finishAt - n) / 1000)}`);
+      let done = false;
+      for (const tm of this.timers) {
+        tm.text.setText(`${tm.prefix}${fmt((tm.finishAt - n) / 1000)}`);
+        if (tm.finishAt <= n) done = true;
+      }
+      if (done && !this.doneSignaled) {
+        this.doneSignaled = true;
+        this.init_.onTimerDone?.();
+      }
     };
     tick();
     this.time.addEvent({ delay: 1000, loop: true, callback: tick });
