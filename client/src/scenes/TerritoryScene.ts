@@ -13,6 +13,8 @@ export interface TerritoryInit {
   units: UnitData[];
   manifest: Record<string, string>;
   spriteTiers: number[];
+  /** 건물 이미지를 클릭했을 때 (건설/업그레이드 창 열기) */
+  onBuildingClick?: (type: string) => void;
 }
 
 const TEXT_STYLE = {
@@ -56,6 +58,12 @@ export class TerritoryScene extends Phaser.Scene {
       const key = buildingSpriteKey(manifest, spriteTiers, character.race, b.type, lv);
       if (key) needed.add(key);
     }
+    // 아직 안 지은 건물(건설 가능한 것)의 이미지도 흐리게 보여 주므로 미리 로드
+    for (const d of this.init_.buildingData) {
+      if (!d.buildable || d.unlockLevel > character.territoryLevel) continue;
+      const key = buildingSpriteKey(manifest, spriteTiers, character.race, d.id, 1);
+      if (key) needed.add(key);
+    }
     for (const id of needed) {
       if (manifest[id]) this.load.image(id, `/${manifest[id]}`);
     }
@@ -80,10 +88,26 @@ export class TerritoryScene extends Phaser.Scene {
       g.level = Math.max(g.level, b.type === 'town_hall' ? character.territoryLevel : b.level);
       groups.set(b.type, g);
     }
+    // 아직 안 지은 건물 중 지금 지을 수 있는 것도 흐리게 보여 준다 (클릭하면 건설)
+    const now = character.serverNow;
+    const busyOf = (type: string): boolean =>
+      character.buildings.some(
+        (b) =>
+          b.type === type &&
+          ((b.finishAt !== null && b.finishAt > now) ||
+            (b.upgradeFinishAt !== null && b.upgradeFinishAt > now)),
+      );
+    const entries: [string, { count: number; level: number }, boolean][] = [...groups].map(
+      ([type, g]) => [type, g, true],
+    );
+    for (const d of buildingData) {
+      if (d.buildable && d.unlockLevel <= character.territoryLevel && !groups.has(d.id))
+        entries.push([d.id, { count: 0, level: 1 }, false]);
+    }
     let idx = 0;
-    for (const [type, g] of groups) {
+    for (const [type, g, owned] of entries) {
       const cellX = WIDTH - 236 + (idx % 2) * 116;
-      const cellY = 48 + Math.floor(idx / 2) * 100;
+      const cellY = 40 + Math.floor(idx / 2) * 92;
       const key = buildingSpriteKey(
         this.init_.manifest,
         this.init_.spriteTiers,
@@ -91,8 +115,16 @@ export class TerritoryScene extends Phaser.Scene {
         type,
         g.level,
       );
+      const click = (obj: Phaser.GameObjects.GameObject): void => {
+        obj.setInteractive({ useHandCursor: true });
+        obj.on('pointerdown', () => this.init_.onBuildingClick?.(type));
+        obj.on('pointerover', () => (obj as Phaser.GameObjects.Image).setTint?.(0xffffcc));
+        obj.on('pointerout', () => (obj as Phaser.GameObjects.Image).clearTint?.());
+      };
       if (key && this.textures.exists(key)) {
-        this.add.image(cellX + 50, cellY + 28, key).setDisplaySize(56, 56);
+        const img = this.add.image(cellX + 50, cellY + 28, key).setDisplaySize(52, 52);
+        if (!owned) img.setAlpha(0.4);
+        click(img);
       } else {
         const color = buildingData.find((d) => d.id === type)?.color ?? '#888888';
         this.add
@@ -103,17 +135,22 @@ export class TerritoryScene extends Phaser.Scene {
             40,
             Phaser.Display.Color.HexStringToColor(color).color,
           )
-          .setStrokeStyle(2, 0x000000);
+          .setStrokeStyle(2, 0x000000)
+          .setAlpha(owned ? 1 : 0.4);
+        click(this.children.list[this.children.list.length - 1]);
       }
-      const label = `${t(`building.${type}`)}\nLv.${g.level}${g.count > 1 ? ` ×${g.count}` : ''}`;
+      const label = owned
+        ? `${t(`building.${type}`)}\nLv.${g.level}${g.count > 1 ? ` ×${g.count}` : ''}${busyOf(type) ? ` ⚒` : ''}`
+        : `${t(`building.${type}`)}\n${t('territory.clickBuild')}`;
       this.add
-        .text(cellX + 50, cellY + 60, label, {
+        .text(cellX + 50, cellY + 58, label, {
           ...TEXT_STYLE,
           fontSize: '13px',
           strokeThickness: 3,
           align: 'center',
         })
-        .setOrigin(0.5, 0);
+        .setOrigin(0.5, 0)
+        .setAlpha(owned ? 1 : 0.6);
       idx++;
     }
 

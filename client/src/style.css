@@ -817,3 +817,12 @@ select.input {
 .btn.primary {
   padding: 10px 6px;
 }
+
+.topbar .clock {
+  color: var(--gold);
+  white-space: nowrap;
+}
+.topbar .workers {
+  white-space: nowrap;
+  cursor: help;
+}

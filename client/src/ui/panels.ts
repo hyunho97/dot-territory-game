@@ -164,7 +164,7 @@ function bThumb(ctx: PanelCtx, type: string, level: number, color: string, size 
   return buildingThumb(ctx.manifest, ctx.spriteTiers, ctx.race.id, type, level, color, size);
 }
 
-export function openBuildingPanel(ctx: PanelCtx): void {
+export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
   const body = h('div', { class: 'modal-body' });
   const err = h('div', { class: 'error' });
   let timer = 0;
@@ -264,7 +264,7 @@ export function openBuildingPanel(ctx: PanelCtx): void {
       lvBox.append(lvMain, lvBtn);
     }
     if (!lvBox.firstChild) lvBox.append(lvMain);
-    sections.push(lvBox);
+    if (!focusType || focusType === 'town_hall') sections.push(lvBox);
 
     // 건설 중
     const ing = h('div', { class: 'build-row-list' });
@@ -301,7 +301,9 @@ export function openBuildingPanel(ctx: PanelCtx): void {
 
     // 보유 건물 업그레이드
     const upgradable = ch.buildings.filter(
-      (b) => ctx.buildings.find((x) => x.id === b.type)?.maxLevel,
+      (b) =>
+        ctx.buildings.find((x) => x.id === b.type)?.maxLevel &&
+        (!focusType || b.type === focusType),
     );
     if (upgradable.length > 0) {
       sections.push(h('h3', { class: 'cat' }, t('upgrade.heading')));
@@ -411,7 +413,9 @@ export function openBuildingPanel(ctx: PanelCtx): void {
 
     // 카테고리별 건물 목록
     for (const cat of ctx.categories) {
-      const defs = ctx.buildings.filter((b) => b.category === cat && b.buildable);
+      const defs = ctx.buildings.filter(
+        (b) => b.category === cat && b.buildable && (!focusType || b.id === focusType),
+      );
       if (defs.length === 0) continue;
       sections.push(h('h3', { class: 'cat' }, t(`category.${cat}`)));
       for (const def of defs) {
@@ -483,7 +487,9 @@ export function openBuildingPanel(ctx: PanelCtx): void {
   };
 
   render();
-  close = openModal(t('buildPanel.heading'), body, () => clearInterval(timer));
+  close = openModal(focusType ? t(`building.${focusType}`) : t('buildPanel.heading'), body, () =>
+    clearInterval(timer),
+  );
   const tick = once(() =>
     ctx
       .refresh()

@@ -76,6 +76,45 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   ch = withPreview(ch);
 
   const topbar = h('div', { class: 'topbar' });
+  const sceneInit = () => ({
+    character: ch,
+    buildingData: buildings,
+    units,
+    manifest,
+    spriteTiers,
+    onBuildingClick: (type: string) => openBuildingPanel(ctx, type),
+  });
+  // 서버 시각 기준 시계 + 일꾼(동시 건설 슬롯) 표시. 1초마다 갱신
+  let clockOffset = ch.serverNow - Date.now();
+  const clockEl = h('span', { class: 'clock' });
+  const workerEl = h('span', { class: 'workers', title: t('territory.workersTip') });
+  const tickClock = () => {
+    const nowMs = Date.now() + clockOffset;
+    const d = new Date(nowMs);
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    clockEl.textContent = t('territory.clock', {
+      y: 1200 + (d.getFullYear() - 2026),
+      m: d.getMonth() + 1,
+      d: d.getDate(),
+      hh: p2(d.getHours()),
+      mm: p2(d.getMinutes()),
+    });
+    const busy = ch.buildings.filter(
+      (b) =>
+        (b.finishAt !== null && b.finishAt > nowMs) ||
+        (b.upgradeFinishAt !== null && b.upgradeFinishAt > nowMs),
+    ).length;
+    workerEl.textContent = t('territory.workers', {
+      free: Math.max(0, ch.buildSlots - busy),
+      max: ch.buildSlots,
+    });
+  };
+  let wasConnected = false;
+  const clockTimer = window.setInterval(() => {
+    if (topbar.isConnected) wasConnected = true;
+    else if (wasConnected) return clearInterval(clockTimer);
+    tickClock();
+  }, 1000);
   const logBar = h('div', { class: 'log' });
   const gameRoot = h('div', { id: 'game-root' });
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
@@ -93,6 +132,8 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       iconEl(`emblems/${ch.race}`, 22, manifest) ?? h('span'),
       h('strong', {}, ch.territoryName),
       h('span', { class: 'lvl' }, t('territory.level', { n: ch.territoryLevel })),
+      clockEl,
+      workerEl,
     ];
     for (const [k, v] of Object.entries(ch.resources)) {
       info.push(
@@ -147,6 +188,8 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       h('button', { class: 'btn', onclick: () => nav.toMode() }, t('territory.logout')),
     );
     topbar.replaceChildren(h('div', { class: 'info' }, ...info), actions);
+    clockOffset = ch.serverNow - Date.now();
+    tickClock();
     const last = ch.logs[0];
     logBar.textContent = last ? describeEvent(last) : t('territory.logIdle');
   };
@@ -161,13 +204,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       renderTop();
       if (sig(ch) !== before) {
         const scene = game?.scene.getScene('Territory');
-        scene?.scene.restart({
-          character: ch,
-          buildingData: buildings,
-          units,
-          manifest,
-          spriteTiers,
-        });
+        scene?.scene.restart(sceneInit());
       }
       return ch;
     },
@@ -200,13 +237,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   // Phaser는 DOM 삽입 이후에 시작
   setTimeout(async () => {
     const { startTerritoryGame } = await import('./scenes/TerritoryScene');
-    game = startTerritoryGame(gameRoot, {
-      character: ch,
-      buildingData: buildings,
-      units,
-      manifest,
-      spriteTiers,
-    });
+    game = startTerritoryGame(gameRoot, sceneInit());
     // 입장: 자리를 비운 동안 있었던 일 요약 + 퀘스트 알림
     api
       .enterSession(ch.serverId)
