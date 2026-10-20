@@ -13,6 +13,7 @@ import { openMarketPanel } from './ui/market';
 import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
+import { openAdminPanel } from './ui/admin';
 import { openGuildPanel } from './ui/guild';
 import { openRankingPanel } from './ui/ranking';
 import { openReportModal } from './ui/report';
@@ -118,6 +119,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   }, 1000);
   const logBar = h('div', { class: 'log' });
   const gameRoot = h('div', { id: 'game-root' });
+  let isAdmin = false; // 테스트용 관리자 계정이면 하단 메뉴에 관리자 버튼을 보인다
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
 
   const dockBtn = (label: string, onclick: () => void, icon: string): HTMLElement =>
@@ -182,6 +184,9 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       dockBtn(t('territory.tabGuild'), () => openGuildPanel(ctx), 'icons/nav_guild'),
       dockBtn(t('territory.tabResearch'), () => openResearchPanel(ctx), 'icons/research'),
       dockBtn(t('territory.tabRanking'), () => openRankingPanel(ctx), 'icons/ranking'),
+      ...(isAdmin
+        ? [dockBtn(t('territory.tabAdmin'), () => openAdminPanel(ctx), 'icons/research')]
+        : []),
       h(
         'button',
         {
@@ -255,6 +260,15 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       })
       .catch(() => undefined);
     void refreshQuestBadge();
+    api
+      .adminStatus()
+      .then((r) => {
+        if (r.admin) {
+          isAdmin = true;
+          renderTop();
+        }
+      })
+      .catch(() => undefined);
   }, 0);
 
   // 생산/건설/침공 등 서버 정산 결과를 주기적으로 반영 (하트비트 겸용)

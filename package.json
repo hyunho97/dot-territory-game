@@ -15,7 +15,8 @@
     "format": "prettier --write \"client/src/**/*.{ts,css,json}\" \"server/src/**/*.ts\" \"data/*.json\"",
     "sprites": "python tools/process_sprites.py",
     "start:prod": "npm run build -w client && cross-env SERVE_CLIENT=1 HOST=0.0.0.0 npm run start -w server",
-    "backup": "node tools/backup_db.mjs"
+    "backup": "node tools/backup_db.mjs",
+    "admin": "node --import tsx tools/make_admin.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

@@ -179,6 +179,7 @@ for (const [name, type] of [
   ['login_id', 'TEXT'],
   ['pw_hash', 'TEXT'],
   ['pw_salt', 'TEXT'],
+  ['is_admin', 'INTEGER'],
 ] as const) {
   if (!userCols.includes(name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${type}`);
 }

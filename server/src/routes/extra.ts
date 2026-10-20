@@ -20,6 +20,8 @@ import {
   setNotice,
   transferLeader,
 } from '../services/guildService.js';
+import { ADMIN_ACTIONS, adminAction, isAdmin } from '../services/adminService.js';
+import type { AdminAction } from '../services/adminService.js';
 import { enterSession } from '../services/sessionService.js';
 import { useSpeedup } from '../services/speedupService.js';
 import type { SpeedupTarget } from '../services/speedupService.js';
@@ -53,6 +55,19 @@ export function registerExtraRoutes(app: FastifyInstance, h: Helpers): void {
     const { cid } = cidFromBody(req);
     const summary = claimAttendance(cid);
     return { summary, quests: getQuests(cid) };
+  });
+
+  // ── 테스트용 관리자 도구 (users.is_admin = 1 계정만) ──
+  app.get('/api/admin/status', async (req) => ({ admin: isAdmin(h.requireUser(req)) }));
+  app.post('/api/admin/action', async (req) => {
+    const userId = h.requireUser(req);
+    if (!isAdmin(userId)) throw new GameError('FORBIDDEN', 403);
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const serverId = Number(body.server);
+    const action = String(body.action ?? '') as AdminAction;
+    if (!ADMIN_ACTIONS.includes(action)) throw new GameError('INVALID_TARGET');
+    const cid = h.characterIdOf(userId, serverId);
+    return adminAction(userId, serverId, cid, action, Number(body.value));
   });
 
   app.post('/api/speedup', async (req) => {

@@ -562,6 +562,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ server, target, seconds, buildingId }),
     }),
+  adminStatus: () => request<{ admin: boolean }>('/api/admin/status'),
+  adminAction: (server: number, action: string, value?: number) =>
+    request<{ ok: true }>('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ server, action, value }),
+    }),
   ranking: (server: number, type: 'cp' | 'level') =>
     request<RankingState>(`/api/ranking?server=${server}&type=${type}`),
   levelUp: (server: number) =>
