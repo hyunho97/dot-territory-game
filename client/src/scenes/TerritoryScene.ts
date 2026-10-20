@@ -8,6 +8,7 @@ import { RINGS, SLOT_POS, slotOf } from './layout';
 // 세계(건물이 놓이는 좌표계) 크기. 화면 크기는 가로/세로 모드에 따라 다르다.
 const WIDTH = 960;
 const HEIGHT = 600;
+const ZOOM = 2; // 실제 캔버스 해상도 배율
 const MAX_IMAGE_LEVEL = 10;
 const SPRITE = 96; // 일반 건물 표시 크기
 const HALL = 150; // 영주관 표시 크기
@@ -305,8 +306,10 @@ export class TerritoryScene extends Phaser.Scene {
   create(): void {
     const { character, buildingData, units, manifest, spriteTiers } = this.init_;
     const has = (k: string): boolean => this.textures.exists(k);
-    const vw = this.scale.width; // 화면(뷰) 크기
-    const vh = this.scale.height;
+    // 캔버스는 논리 크기의 ZOOM 배로 만들고 카메라를 확대해, 화면에 맞춰 줄어들어도 글자가 또렷하다
+    const vw = this.scale.width / ZOOM; // 화면(뷰) 논리 크기
+    const vh = this.scale.height / ZOOM;
+    this.cameras.main.setOrigin(0, 0).setZoom(ZOOM);
     // 세계가 화면보다 크면(세로 모드) 드래그로 이동, 작으면 가운데에 맞춘다
     const cam = this.cameras.main;
     const clampCam = (): void => {
@@ -326,8 +329,8 @@ export class TerritoryScene extends Phaser.Scene {
     });
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
       if (!ptr.isDown || !last) return;
-      const dx = ptr.x - last.x;
-      const dy = ptr.y - last.y;
+      const dx = (ptr.x - last.x) / ZOOM;
+      const dy = (ptr.y - last.y) / ZOOM;
       if (!dragged && Math.hypot(ptr.x - ptr.downX, ptr.y - ptr.downY) < 10) return;
       dragged = true;
       cam.scrollX -= dx;
@@ -406,21 +409,24 @@ export class TerritoryScene extends Phaser.Scene {
         layer.add(tx);
       };
       if (opts.ghost) {
-        img.setAlpha(0.28);
+        img.setAlpha(0.01); // 눌러서 건설할 자리: 흐릿한 건물 그림 대신 깔끔한 터 표시
+        layer.add(
+          this.add
+            .ellipse(x, y + size * 0.1, size * 0.9, size * 0.34, 0xffffff, 0.14)
+            .setStrokeStyle(2, 0xffffff, 0.55),
+        );
+        layer.add(
+          this.add.circle(x, y - size * 0.1, 17, 0x1a1428, 0.75).setStrokeStyle(2, 0xe8b830),
+        );
         const plus = this.add
-          .text(x, y - size * 0.25, '+', { ...TEXT_STYLE, fontSize: '30px' })
+          .text(x, y - size * 0.1, '+', { ...TEXT_STYLE, fontSize: '26px', strokeThickness: 0 })
           .setOrigin(0.5);
         const label = this.add
           .text(x, y + size * 0.26, t(`building.${type}`), smallText)
           .setOrigin(0.5);
-        layer.add(
-          this.add
-            .ellipse(x, y + size * 0.18, size * 0.8, size * 0.24)
-            .setStrokeStyle(2, 0xffffff, 0.5),
-        );
         pill(label);
         layer.add(plus);
-        this.tweens.add({ targets: plus, alpha: 0.35, yoyo: true, repeat: -1, duration: 900 });
+        this.tweens.add({ targets: plus, alpha: 0.5, yoyo: true, repeat: -1, duration: 900 });
         hits.push(plus);
       } else {
         if (constructing) img.setAlpha(0.55);
@@ -639,13 +645,15 @@ export function startTerritoryGame(parent: HTMLElement, init: TerritoryInit): Ph
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    width,
-    height,
+    width: width * ZOOM,
+    height: height * ZOOM,
     backgroundColor: '#15151d',
     pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [],
   });
+  // 화면에 맞춰 줄일 때 글자가 깨지지 않도록 부드럽게(도트 그림은 이미 확대 필터로 처리)
+  game.canvas.style.imageRendering = 'auto';
   game.scene.add('Territory', TerritoryScene, true, init);
   return game;
 }
