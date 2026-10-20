@@ -142,12 +142,11 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
           { class: 'res' },
           iconEl(`icons/res_${k}`, 16, manifest) ??
             h('span', { class: 'swatch', style: `background:${RES_COLORS[k]}` }),
-          `${t(`resource.${k}`)} ${v}`,
+          `${t(`resource.${k}`)} ${v}/${ch.storageCap}`,
         ),
       );
     }
     info.push(
-      h('span', { class: 'muted' }, t('territory.storage', { n: ch.storageCap })),
       h('span', { class: 'spacer' }),
       h('span', {}, t('territory.troopsFmt', { n: ch.totalTroops, max: ch.maxTroops })),
       h('span', {}, `${t('territory.cp')} ${ch.totalCP}`),
