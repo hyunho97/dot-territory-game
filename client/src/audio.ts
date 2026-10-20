@@ -15,12 +15,21 @@ const BGM_VOLUME = 0.45;
 const BATTLE_VOLUME = 0.85;
 const SFX_VOLUME = 0.9;
 const STORE_KEY = 'sound_on';
+const VOLUME_KEY = 'sound_volume';
+
+let master = 0.7; // 전체 음량 (0~1). 각 소리의 기본 음량에 곱해진다
 
 let enabled = true;
 try {
   enabled = localStorage.getItem(STORE_KEY) !== '0';
 } catch {
   /* 저장소를 못 쓰면 기본값(켜짐) */
+}
+try {
+  const v = parseFloat(localStorage.getItem(VOLUME_KEY) ?? '');
+  if (Number.isFinite(v)) master = Math.min(1, Math.max(0, v));
+} catch {
+  /* 기본값 */
 }
 
 let bgm: HTMLAudioElement | null = null;
@@ -34,7 +43,7 @@ export const onSoundChange = (fn: () => void): void => void listeners.add(fn);
 const make = (src: string, volume: number, loop = false): HTMLAudioElement => {
   const a = new Audio(src);
   a.preload = 'auto';
-  a.volume = volume;
+  a.volume = volume * master;
   a.loop = loop;
   return a;
 };
@@ -58,6 +67,19 @@ function syncBgm(): void {
 document.addEventListener('visibilitychange', syncBgm);
 
 export const soundEnabled = (): boolean => enabled;
+export const soundVolume = (): number => master;
+
+/** 전체 음량 조절(0~1). 재생 중인 소리에 바로 적용되고, 0 이면 끈 것과 같다 */
+export function setSoundVolume(v: number): void {
+  master = Math.min(1, Math.max(0, v));
+  try {
+    localStorage.setItem(VOLUME_KEY, String(master));
+  } catch {
+    /* 무시 */
+  }
+  if (bgm) bgm.volume = BGM_VOLUME * master;
+  if (battle && battleActive) battle.volume = BATTLE_VOLUME * master;
+}
 
 export function setSoundEnabled(on: boolean): void {
   enabled = on;
@@ -104,11 +126,11 @@ export function stopBattle(): void {
   if (b && !b.paused) {
     clearInterval(fadeTimer);
     fadeTimer = window.setInterval(() => {
-      b.volume = Math.max(0, b.volume - 0.15);
+      b.volume = Math.max(0, b.volume - 0.15 * master);
       if (b.volume <= 0) {
         clearInterval(fadeTimer);
         b.pause();
-        b.volume = BATTLE_VOLUME;
+        b.volume = BATTLE_VOLUME * master;
       }
     }, 40);
   }

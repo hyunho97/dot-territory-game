@@ -170,6 +170,7 @@
     "level": "영지 Lv.{n}",
     "soundOn": "소리 켬",
     "soundOff": "소리 끔",
+    "volume": "음량",
     "notifyOn": "알림 켜기",
     "notifyOff": "알림 끄기",
     "install": "앱 설치",

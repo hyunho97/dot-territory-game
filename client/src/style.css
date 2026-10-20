@@ -1356,3 +1356,10 @@ body {
     font-size: 12px;
   }
 }
+
+.topbar .volume {
+  width: 72px;
+  accent-color: #e8b830;
+  vertical-align: middle;
+  cursor: pointer;
+}

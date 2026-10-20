@@ -15,7 +15,15 @@ import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
 import { LOCAL, bootLocal, openSaveManager } from 'virtual:local-boot';
-import { onSoundChange, playSfx, setSoundEnabled, soundEnabled, startBgm } from './audio';
+import {
+  onSoundChange,
+  playSfx,
+  setSoundEnabled,
+  setSoundVolume,
+  soundEnabled,
+  soundVolume,
+  startBgm,
+} from './audio';
 import {
   canInstall,
   disablePush,
@@ -268,6 +276,17 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
         { class: 'btn small', onclick: () => setSoundEnabled(!soundEnabled()) },
         soundEnabled() ? t('territory.soundOn') : t('territory.soundOff'),
       ),
+      h('input', {
+        class: 'volume',
+        type: 'range',
+        min: '0',
+        max: '100',
+        value: String(Math.round(soundVolume() * 100)),
+        title: t('territory.volume'),
+        'aria-label': t('territory.volume'),
+        // 위 막대를 다시 그리면 드래그가 끊기므로 소리 크기만 바꾼다
+        oninput: (e: Event) => setSoundVolume(Number((e.target as HTMLInputElement).value) / 100),
+      }),
       ...(!LOCAL && (pushSupported() || isIOS())
         ? [
             h(
