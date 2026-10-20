@@ -76,6 +76,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   ch = withPreview(ch);
 
   const topbar = h('div', { class: 'topbar' });
+  const dock = h('div', { class: 'dock' });
   const sceneInit = () => ({
     character: ch,
     buildingData: buildings,
@@ -119,74 +120,83 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   const gameRoot = h('div', { id: 'game-root' });
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
 
-  const actionBtn = (label: string, onclick: () => void, extra = '', icon?: string): HTMLElement =>
+  const dockBtn = (label: string, onclick: () => void, icon: string): HTMLElement =>
     h(
       'button',
-      { class: `btn primary${extra}`, onclick },
-      (icon && iconEl(icon, 16, manifest)) || '',
-      label,
+      { class: 'dock-btn', onclick },
+      iconEl(icon, 28, manifest) ?? h('span', { class: 'dock-ph' }),
+      h('span', { class: 'dock-label' }, label),
     );
 
   const renderTop = () => {
-    const info: HTMLElement[] = [
-      iconEl(`emblems/${ch.race}`, 22, manifest) ?? h('span'),
+    const chip = (...kids: (HTMLElement | string)[]) => h('span', { class: 'chip' }, ...kids);
+    const brand = h(
+      'div',
+      { class: 'brand' },
+      iconEl(`emblems/${ch.race}`, 28, manifest) ?? h('span'),
       h('strong', {}, ch.territoryName),
-      h('span', { class: 'lvl' }, t('territory.level', { n: ch.territoryLevel })),
-      clockEl,
-      workerEl,
-    ];
+      h('span', { class: 'lvl-badge' }, t('territory.level', { n: ch.territoryLevel })),
+    );
+    const resBox = h('div', { class: 'res-box' });
     for (const [k, v] of Object.entries(ch.resources)) {
-      info.push(
+      const pct = Math.min(100, Math.round((v / Math.max(1, ch.storageCap)) * 100));
+      resBox.append(
         h(
           'span',
-          { class: 'res' },
-          iconEl(`icons/res_${k}`, 16, manifest) ??
+          { class: `res${pct >= 95 ? ' full' : ''}`, title: t(`resource.${k}`) },
+          iconEl(`icons/res_${k}`, 20, manifest) ??
             h('span', { class: 'swatch', style: `background:${RES_COLORS[k]}` }),
-          `${t(`resource.${k}`)} ${v}/${ch.storageCap}`,
+          h(
+            'span',
+            { class: 'res-text' },
+            h('b', {}, String(v)),
+            h('small', {}, `/${ch.storageCap}`),
+            h(
+              'span',
+              { class: 'res-bar' },
+              h('i', { style: `width:${pct}%;background:${RES_COLORS[k]}` }),
+            ),
+          ),
         ),
       );
     }
-    info.push(
-      h('span', { class: 'spacer' }),
-      h('span', {}, t('territory.troopsFmt', { n: ch.totalTroops, max: ch.maxTroops })),
-      h('span', {}, `${t('territory.cp')} ${ch.totalCP}`),
-    );
-    const actions = h(
+    const stats = h(
       'div',
-      { class: 'actions' },
-      actionBtn(
-        t('territory.tabTerritory'),
-        () => openBuildingPanel(ctx),
-        '',
-        'icons/nav_territory',
-      ),
-      actionBtn(t('territory.tabBarracks'), () => openBarracksPanel(ctx), '', 'icons/nav_barracks'),
-      actionBtn(t('territory.tabSmithy'), () => openSmithyPanel(ctx), '', 'icons/nav_smithy'),
-      actionBtn(t('territory.tabBattle'), () => openBattlePanel(ctx), '', 'icons/nav_battle'),
-      actionBtn(t('territory.tabExplore'), () => openExplorePanel(ctx), '', 'icons/nav_explore'),
-      actionBtn(t('territory.tabMarket'), () => openMarketPanel(ctx), '', 'icons/trade'),
-      actionBtn(t('territory.tabDungeon'), () => openDungeonPanel(ctx), '', 'icons/nav_dungeon'),
-      actionBtn(t('territory.tabGuild'), () => openGuildPanel(ctx), '', 'icons/nav_guild'),
-      actionBtn(t('territory.tabResearch'), () => openResearchPanel(ctx), '', 'icons/research'),
-      actionBtn(t('territory.tabRanking'), () => openRankingPanel(ctx), '', 'icons/ranking'),
+      { class: 'stats' },
+      clockEl,
+      chip(workerEl),
+      chip(t('territory.troopsFmt', { n: ch.totalTroops, max: ch.maxTroops })),
+      chip(`${t('territory.cp')} ${ch.totalCP}`),
+      h('button', { class: 'btn small', onclick: () => nav.toMode() }, t('territory.logout')),
+    );
+    topbar.replaceChildren(brand, resBox, stats);
+
+    dock.replaceChildren(
+      dockBtn(t('territory.tabTerritory'), () => openBuildingPanel(ctx), 'icons/nav_territory'),
+      dockBtn(t('territory.tabBarracks'), () => openBarracksPanel(ctx), 'icons/nav_barracks'),
+      dockBtn(t('territory.tabSmithy'), () => openSmithyPanel(ctx), 'icons/nav_smithy'),
+      dockBtn(t('territory.tabBattle'), () => openBattlePanel(ctx), 'icons/nav_battle'),
+      dockBtn(t('territory.tabExplore'), () => openExplorePanel(ctx), 'icons/nav_explore'),
+      dockBtn(t('territory.tabMarket'), () => openMarketPanel(ctx), 'icons/trade'),
+      dockBtn(t('territory.tabDungeon'), () => openDungeonPanel(ctx), 'icons/nav_dungeon'),
+      dockBtn(t('territory.tabGuild'), () => openGuildPanel(ctx), 'icons/nav_guild'),
+      dockBtn(t('territory.tabResearch'), () => openResearchPanel(ctx), 'icons/research'),
+      dockBtn(t('territory.tabRanking'), () => openRankingPanel(ctx), 'icons/ranking'),
       h(
         'button',
         {
-          class: `btn primary${questBadge ? ' badge-on' : ''}`,
+          class: `dock-btn${questBadge ? ' badge-on' : ''}`,
           onclick: () =>
             openQuestPanel(ctx, (q) => {
               questBadge = hasClaimable(q);
               renderTop();
             }),
         },
-        iconEl('icons/quest', 16, manifest) ?? '',
-        t('territory.tabQuest'),
+        iconEl('icons/quest', 28, manifest) ?? '',
+        h('span', { class: 'dock-label' }, t('territory.tabQuest')),
         questBadge ? (iconEl('icons/quest_badge', 18, manifest) ?? '') : '',
       ),
-      h('span', { class: 'spacer' }),
-      h('button', { class: 'btn', onclick: () => nav.toMode() }, t('territory.logout')),
     );
-    topbar.replaceChildren(h('div', { class: 'info' }, ...info), actions);
     clockOffset = ch.serverNow - Date.now();
     tickClock();
     const last = ch.logs[0];
@@ -231,7 +241,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       .catch(() => undefined);
 
   renderTop();
-  const wrap = h('div', { class: 'territory' }, topbar, gameRoot, logBar);
+  const wrap = h('div', { class: 'territory' }, topbar, gameRoot, dock, logBar);
 
   // Phaser는 DOM 삽입 이후에 시작
   setTimeout(async () => {
