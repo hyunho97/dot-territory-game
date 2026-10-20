@@ -1,5 +1,5 @@
 import { db } from '../db/db.js';
-import { researchData } from '../data.js';
+import { equipmentData, researchData } from '../data.js';
 import { guildBuff, guildLevel } from './guildRules.js';
 
 /** 하위(leaf) 모듈: DB/데이터만 의존 — 다른 서비스가 안전하게 가져다 쓸 수 있다. */
@@ -25,9 +25,9 @@ export function researchBonus(characterId: number, effect: ResearchEffect): numb
 export function equipPct(characterId: number): number {
   const row = db
     .prepare(
-      'SELECT COALESCE(SUM(power),0) AS p FROM equipment WHERE character_id = ? AND equipped = 1',
+      'SELECT COALESCE(SUM(power * (1 + enhance * ?)),0) AS p FROM equipment WHERE character_id = ? AND equipped = 1',
     )
-    .get(characterId) as { p: number };
+    .get(equipmentData.enhance.powerPerLevel, characterId) as { p: number };
   return row.p;
 }
 

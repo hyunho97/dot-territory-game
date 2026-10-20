@@ -6,7 +6,9 @@ import { GameError, createCharacter, getCharacter } from '../services/characterS
 import {
   craftEquipment,
   equipItem,
+  enhanceItem,
   equipmentState,
+  fuseItems,
   salvageItem,
   unequipItem,
 } from '../services/equipmentService.js';
@@ -285,6 +287,26 @@ export function registerRoutes(app: FastifyInstance): void {
     else if (action === 'salvage') salvageItem(cid, Number(itemId));
     else throw new GameError('NOT_FOUND', 404);
     return equipmentState(cid);
+  });
+
+  app.post('/api/equipment/enhance', async (req) => {
+    const userId = requireUser(req);
+    const { server, itemId } = (req.body ?? {}) as { server?: number; itemId?: number };
+    const cid = characterIdOf(userId, Number(server));
+    const result = enhanceItem(cid, Number(itemId));
+    return { ...equipmentState(cid), result };
+  });
+
+  app.post('/api/equipment/fuse', async (req) => {
+    const userId = requireUser(req);
+    const { server, itemA, itemB } = (req.body ?? {}) as {
+      server?: number;
+      itemA?: number;
+      itemB?: number;
+    };
+    const cid = characterIdOf(userId, Number(server));
+    const fuse = fuseItems(cid, Number(itemA), Number(itemB));
+    return { ...equipmentState(cid), fuse };
   });
 
   app.get('/api/explore', async (req) => {

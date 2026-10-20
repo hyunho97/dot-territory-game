@@ -149,6 +149,19 @@ export const equipmentData = load<{
   types: { id: string; cost: Record<string, number>; craftTimeSec: number }[];
   craftSlots: { base: number; levelsPerExtra: number };
   maxInventory: number;
+  enhance: {
+    maxLevel: number;
+    powerPerLevel: number;
+    successRate: number[];
+    cost: Record<string, number>;
+    levelGrowth: number;
+    gradeGrowth: number;
+  };
+  fusion: {
+    chance: Record<string, number>;
+    cost: Record<string, number>;
+    failRefundRatio: number;
+  };
 }>('equipment.json');
 export const pvpConfig = load<{
   cpRangeMin: number;

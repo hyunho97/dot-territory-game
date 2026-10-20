@@ -985,3 +985,16 @@ select.input {
 .topbar .res {
   padding: 2px 8px 2px 5px;
 }
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.unit-card.picked {
+  box-shadow: 0 0 0 3px var(--gold);
+}
+.enh-tag {
+  color: var(--gold);
+}

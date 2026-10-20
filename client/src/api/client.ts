@@ -135,6 +135,10 @@ export interface EquipItem {
   type: string;
   grade: string;
   power: number;
+  /** 강화 단계 (0~10) */
+  enhance: number;
+  /** 강화가 반영된 실제 보정(%) */
+  effectivePower: number;
   equipped: boolean;
 }
 export interface EquipmentState {
@@ -148,6 +152,15 @@ export interface EquipmentState {
 }
 export interface EquipmentData {
   types: { id: string; cost: Record<string, number>; craftTimeSec: number }[];
+  enhance: {
+    maxLevel: number;
+    powerPerLevel: number;
+    successRate: number[];
+    cost: Record<string, number>;
+    levelGrowth: number;
+    gradeGrowth: number;
+  };
+  fusion: { chance: Record<string, number>; cost: Record<string, number>; failRefundRatio: number };
   grades: { id: string; weight: number; power: number; color: string }[];
 }
 export interface PvpTarget {
@@ -465,6 +478,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ server, itemId }),
     }),
+  enhanceItem: (server: number, itemId: number) =>
+    request<EquipmentState & { result: 'success' | 'fail' | 'promoted' }>(
+      '/api/equipment/enhance',
+      { method: 'POST', body: JSON.stringify({ server, itemId }) },
+    ),
+  fuseItems: (server: number, itemA: number, itemB: number) =>
+    request<
+      EquipmentState & {
+        fuse: { success: boolean; item: { type: string; grade: string; power: number } | null };
+      }
+    >('/api/equipment/fuse', { method: 'POST', body: JSON.stringify({ server, itemA, itemB }) }),
   pvpTargets: (server: number) => request<PvpTargets>(`/api/pvp/targets?server=${server}`),
   pvpAttack: (server: number, targetId: number, units: Record<string, number>) =>
     request<BattleOutcome>('/api/pvp/attack', {

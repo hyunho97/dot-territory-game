@@ -136,6 +136,12 @@ if (!bldCols.includes('levelup_to')) db.exec('ALTER TABLE buildings ADD COLUMN l
 if (!bldCols.includes('levelup_finish_at'))
   db.exec('ALTER TABLE buildings ADD COLUMN levelup_finish_at INTEGER');
 
+const eqCols = (db.prepare('PRAGMA table_info(equipment)').all() as { name: string }[]).map(
+  (c) => c.name,
+);
+if (!eqCols.includes('enhance'))
+  db.exec('ALTER TABLE equipment ADD COLUMN enhance INTEGER NOT NULL DEFAULT 0');
+
 if (!charCols.includes('last_attack_at'))
   db.exec('ALTER TABLE characters ADD COLUMN last_attack_at INTEGER');
 if (!charCols.includes('protection_until'))

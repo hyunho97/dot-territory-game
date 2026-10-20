@@ -56,6 +56,8 @@ export function openSmithyPanel(ctx: PanelCtx): void {
   let timer = 0;
   const now = () => Date.now() + offset;
   let close: () => void = () => {};
+  const msg = h('div', { class: 'pro' });
+  let fuseSel: number[] = [];
 
   const itemName = (i: { type: string; grade: string }) =>
     `${t(`equip.grade.${i.grade}`)} ${t(`equip.type.${i.type}`)}`;
@@ -103,7 +105,7 @@ export function openSmithyPanel(ctx: PanelCtx): void {
             ? h(
                 'div',
                 { style: `color:${GRADE_COLORS[it.grade]}` },
-                `${t(`equip.grade.${it.grade}`)} +${it.power}%`,
+                `${t(`equip.grade.${it.grade}`)}${it.enhance ? ` +${it.enhance}` : ''} · +${it.effectivePower}%`,
               )
             : h('div', { class: 'muted' }, t('equip.empty')),
         ),
@@ -178,8 +180,110 @@ export function openSmithyPanel(ctx: PanelCtx): void {
         GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade) ||
         b.power - a.power,
     );
+    fuseSel = fuseSel.filter((id) => st.items.some((x) => x.id === id && !x.equipped));
+    sections.push(fusePanel(st));
     for (const it of sorted) sections.push(itemRow(it));
-    body.replaceChildren(...sections, err);
+    body.replaceChildren(msg, ...sections, err);
+  };
+
+  const st_hasSmithy = (): boolean => state?.hasSmithy ?? false;
+
+  const doEnhance = async (it: EquipItem) => {
+    err.textContent = '';
+    msg.textContent = '';
+    try {
+      const r = await api.enhanceItem(serverId, it.id);
+      state = r;
+      offset = r.serverNow - Date.now();
+      if (r.result === 'success')
+        msg.textContent = t('equip.enhanceSuccess', { n: it.enhance + 1 });
+      else if (r.result === 'promoted') {
+        const now2 = r.items.find((x) => x.id === it.id);
+        msg.textContent = t('equip.promoted', {
+          name: t(`equip.type.${it.type}`),
+          grade: t(`equip.grade.${now2?.grade ?? it.grade}`),
+        });
+        if (now2)
+          playCraftFx(ctx, `${t(`equip.grade.${now2.grade}`)} ${t(`equip.type.${now2.type}`)}`);
+      } else msg.textContent = t('equip.enhanceFail');
+      msg.className = r.result === 'fail' ? 'con' : 'pro';
+      await ctx.refresh();
+    } catch (e) {
+      err.textContent = errMsg(e);
+    }
+    render();
+  };
+
+  const fusePanel = (st: EquipmentState): HTMLElement => {
+    const sel = fuseSel
+      .map((id) => st.items.find((x) => x.id === id))
+      .filter(Boolean) as EquipItem[];
+    const grade = sel[0]?.grade;
+    const box = h(
+      'div',
+      { class: 'build-card' },
+      h(
+        'div',
+        { class: 'build-main' },
+        h('strong', {}, t('equip.fuseHeading')),
+        h('div', { class: 'muted' }, t('equip.fuseHint')),
+        h(
+          'div',
+          {},
+          t('equip.fuseSlot', { n: sel.length }),
+          sel.length ? ` · ${sel.map(itemName).join(' + ')}` : '',
+        ),
+        grade && ctx.equipment.grades.some((g) => g.id === grade)
+          ? h(
+              'div',
+              { class: 'pro' },
+              t('equip.fuseInfo', {
+                grade: t(`equip.grade.${grade}`),
+                next: t(
+                  `equip.grade.${ctx.equipment.grades[ctx.equipment.grades.findIndex((g) => g.id === grade) + 1]?.id ?? grade}`,
+                ),
+                pct: Math.round((ctx.equipment.fusion.chance[grade] ?? 0) * 1000) / 10,
+                cost: Object.entries(ctx.equipment.fusion.cost)
+                  .map(([k, v]) => `${t(`resource.${k}`)} ${v}`)
+                  .join(' '),
+              }),
+            )
+          : null,
+      ),
+    );
+    const go = h('button', { class: 'btn primary' }, t('equip.fuseBtn'));
+    (go as HTMLButtonElement).disabled = sel.length !== 2 || !st.hasSmithy;
+    go.addEventListener('click', async () => {
+      (go as HTMLButtonElement).disabled = true;
+      err.textContent = '';
+      msg.textContent = '';
+      try {
+        const r = await api.fuseItems(serverId, sel[0].id, sel[1].id);
+        state = r;
+        offset = r.serverNow - Date.now();
+        fuseSel = [];
+        if (r.fuse.success && r.fuse.item) {
+          const name = `${t(`equip.grade.${r.fuse.item.grade}`)} ${t(`equip.type.${r.fuse.item.type}`)}`;
+          msg.textContent = t('equip.fuseSuccess', { name });
+          msg.className = 'pro';
+          playCraftFx(ctx, name);
+        } else {
+          msg.textContent = t('equip.fuseFail');
+          msg.className = 'con';
+        }
+        await ctx.refresh();
+      } catch (e) {
+        err.textContent = errMsg(e);
+      }
+      render();
+    });
+    const clr = h('button', { class: 'btn' }, t('equip.fuseClear'));
+    clr.addEventListener('click', () => {
+      fuseSel = [];
+      render();
+    });
+    box.append(h('div', { class: 'col' }, go, clr));
+    return box;
   };
 
   const itemRow = (it: EquipItem): HTMLElement => {
@@ -196,18 +300,81 @@ export function openSmithyPanel(ctx: PanelCtx): void {
     const salvageBtn = h('button', { class: 'btn' }, t('equip.salvage'));
     (salvageBtn as HTMLButtonElement).disabled = it.equipped;
     salvageBtn.addEventListener('click', () => void act(() => api.salvage(serverId, it.id)));
+    // 강화: 최대 단계면 비활성, 다음 단계가 승급이면 "승급 도전"
+    const E = ctx.equipment.enhance;
+    const maxed = it.enhance >= E.maxLevel;
+    const gradeIdx = ctx.equipment.grades.findIndex((g) => g.id === it.grade);
+    const nextGradeId = ctx.equipment.grades[gradeIdx + 1]?.id;
+    const promoting = !maxed && it.enhance + 1 >= E.maxLevel && !!nextGradeId;
+    const mult = (1 + it.enhance * E.levelGrowth) * (1 + gradeIdx * E.gradeGrowth);
+    const eCost: Record<string, number> = {};
+    for (const [k, v] of Object.entries(E.cost)) eCost[k] = Math.ceil(v * mult);
+    const pct = Math.round(
+      (E.successRate[Math.min(it.enhance, E.successRate.length - 1)] ?? 0) * 100,
+    );
+    const enhBtn = h(
+      'button',
+      { class: 'btn primary' },
+      promoting ? t('equip.promoteBtn') : t('equip.enhanceBtn'),
+    );
+    (enhBtn as HTMLButtonElement).disabled = maxed || !st_hasSmithy();
+    enhBtn.addEventListener('click', () => {
+      (enhBtn as HTMLButtonElement).disabled = true;
+      void doEnhance(it);
+    });
+    const picked = fuseSel.includes(it.id);
+    const fuseBtn = h(
+      'button',
+      { class: 'btn' },
+      picked ? t('equip.fusePicked') : t('equip.fusePick'),
+    );
+    const fuseGrade = state ? state.items.find((x) => x.id === fuseSel[0])?.grade : undefined;
+    (fuseBtn as HTMLButtonElement).disabled =
+      it.equipped ||
+      !(ctx.equipment.fusion.chance[it.grade] > 0) ||
+      (fuseSel.length >= 2 && !picked) ||
+      (!!fuseGrade && fuseGrade !== it.grade && !picked);
+    fuseBtn.addEventListener('click', () => {
+      fuseSel = picked ? fuseSel.filter((x) => x !== it.id) : [...fuseSel, it.id];
+      render();
+    });
     return h(
       'div',
-      { class: 'unit-card', style: `border-color:${GRADE_COLORS[it.grade]}` },
+      {
+        class: `unit-card${picked ? ' picked' : ''}`,
+        style: `border-color:${GRADE_COLORS[it.grade]}`,
+      },
       icon(ctx, it.type, it.grade),
       h(
         'div',
         { class: 'info' },
-        h('strong', { style: `color:${GRADE_COLORS[it.grade]}` }, itemName(it)),
-        h('div', { class: 'muted' }, t('equip.power', { n: it.power })),
+        h(
+          'strong',
+          { style: `color:${GRADE_COLORS[it.grade]}` },
+          itemName(it),
+          it.enhance
+            ? h('span', { class: 'enh-tag' }, ` ${t('equip.enhanceTag', { n: it.enhance })}`)
+            : '',
+        ),
+        h('div', { class: 'muted' }, t('equip.power', { n: it.effectivePower })),
+        maxed
+          ? h('div', { class: 'muted' }, t('equip.enhanceMax'))
+          : h(
+              'div',
+              { class: 'muted' },
+              promoting
+                ? t('equip.promoteInfo', {
+                    from: it.enhance,
+                    grade: t(`equip.grade.${nextGradeId}`),
+                    pct,
+                  })
+                : t('equip.enhanceInfo', { from: it.enhance, to: it.enhance + 1, pct }),
+              ' · ',
+              costEl(eCost, ctx.getChar().resources, 1),
+            ),
         it.equipped ? h('span', { class: 'badge mine' }, t('equip.worn')) : null,
       ),
-      h('div', { class: 'row' }, equipBtn, salvageBtn),
+      h('div', { class: 'col' }, enhBtn, h('div', { class: 'row' }, equipBtn, fuseBtn, salvageBtn)),
     );
   };
 

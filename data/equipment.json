@@ -35,5 +35,18 @@
     { "id": "accessory", "cost": { "gold": 80, "iron": 10 }, "craftTimeSec": 90 }
   ],
   "craftSlots": { "base": 1, "levelsPerExtra": 4 },
-  "maxInventory": 50
+  "maxInventory": 50,
+  "enhance": {
+    "maxLevel": 10,
+    "powerPerLevel": 0.04,
+    "successRate": [1, 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2],
+    "cost": { "iron": 30, "gold": 10 },
+    "levelGrowth": 0.35,
+    "gradeGrowth": 0.8
+  },
+  "fusion": {
+    "chance": { "common": 0.1, "uncommon": 0.06, "rare": 0.03, "epic": 0.015 },
+    "cost": { "gold": 50 },
+    "failRefundRatio": 0.5
+  }
 }
