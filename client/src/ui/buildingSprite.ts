@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { h } from './dom';
 
 /**
@@ -36,7 +37,7 @@ export function buildingThumb(
   if (key)
     return h('img', {
       class: 'bld-thumb',
-      src: `/${manifest[key]}`,
+      src: assetUrl(manifest[key]),
       alt: type,
       width: size,
       height: size,

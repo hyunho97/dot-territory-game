@@ -1,4 +1,5 @@
 import { api } from './api/client';
+import { assetUrl } from './assetUrl';
 
 /** PWA(홈 화면 설치) + 웹 푸시 알림 도우미 */
 
@@ -35,7 +36,7 @@ export async function promptInstall(): Promise<void> {
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    return await navigator.serviceWorker.register('/sw.js');
+    return await navigator.serviceWorker.register(assetUrl('sw.js'));
   } catch {
     return null;
   }
@@ -46,7 +47,7 @@ export const pushSupported = (): boolean =>
 
 async function currentSubscription(): Promise<PushSubscription | null> {
   if (!pushSupported()) return null;
-  const reg = await navigator.serviceWorker.getRegistration('/');
+  const reg = await navigator.serviceWorker.getRegistration(assetUrl(''));
   return reg ? reg.pushManager.getSubscription() : null;
 }
 
@@ -69,7 +70,8 @@ export async function enablePush(): Promise<PushResult> {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') return 'denied';
   const reg =
-    (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker());
+    (await navigator.serviceWorker.getRegistration(assetUrl(''))) ??
+    (await registerServiceWorker());
   if (!reg) return 'unsupported';
   await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();

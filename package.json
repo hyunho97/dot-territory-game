@@ -16,7 +16,9 @@
     "sprites": "python tools/process_sprites.py",
     "start:prod": "npm run build -w client && cross-env SERVE_CLIENT=1 HOST=0.0.0.0 npm run start -w server",
     "backup": "node tools/backup_db.mjs",
-    "admin": "node --import tsx tools/make_admin.ts"
+    "admin": "node --import tsx tools/make_admin.ts",
+    "dev:local": "npm run dev:local -w client",
+    "build:local": "npm run build:local -w client"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

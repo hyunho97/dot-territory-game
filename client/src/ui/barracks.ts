@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { api } from '../api/client';
 import type { UnitData } from '../api/client';
 import { t } from '../i18n';
@@ -21,7 +22,7 @@ export function openBarracksPanel(ctx: PanelCtx): void {
       'div',
       { class: 'thumb' },
       path
-        ? h('img', { src: `/${path}`, alt: t(`unit.${u.id}`) })
+        ? h('img', { src: assetUrl(path), alt: t(`unit.${u.id}`) })
         : h('div', { class: 'placeholder-sprite' }, t(`unit.${u.id}`)),
     );
   };

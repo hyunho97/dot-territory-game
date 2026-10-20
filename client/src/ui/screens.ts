@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { ApiError, api, loadManifest, session } from '../api/client';
 import type { CharacterState, RaceData, ServerInfo, UnitData } from '../api/client';
 import { errorMessage, t } from '../i18n';
@@ -17,7 +18,7 @@ export interface Nav {
 async function spriteEl(spriteId: string, label: string): Promise<HTMLElement> {
   const manifest = await loadManifest();
   const path = manifest[spriteId];
-  if (path) return h('img', { src: `/${path}`, alt: label, width: 96, height: 96 });
+  if (path) return h('img', { src: assetUrl(path), alt: label, width: 96, height: 96 });
   return h('div', { class: 'placeholder-sprite' }, label);
 }
 
@@ -285,7 +286,7 @@ export async function raceScreen(nav: Nav, server: ServerInfo): Promise<HTMLElem
     const preview = unit ? await spriteEl(unit.sprite, unitName) : h('div');
     detail.replaceChildren(
       manifest[`races/${race.id}`]
-        ? h('img', { class: 'race-banner', src: `/${manifest[`races/${race.id}`]}`, alt: '' })
+        ? h('img', { class: 'race-banner', src: assetUrl(manifest[`races/${race.id}`]), alt: '' })
         : h('div'),
       h(
         'h2',

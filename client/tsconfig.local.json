@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "vite/client"],
+    "paths": { "virtual:local-boot": ["./src/local/boot.ts"] }
+  },
+  "include": ["src/local/boot.ts", "src/local/saveManager.ts", "src/local/shims/*.ts"]
+}

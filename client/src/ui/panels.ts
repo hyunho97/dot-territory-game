@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { ApiError, api } from '../api/client';
 import type {
   BuildingData,
@@ -533,12 +534,12 @@ export function openExplorePanel(ctx: PanelCtx): void {
   const mapImg = new Image();
   if (ctx.manifest['tiles/explore_map']) {
     mapImg.onload = () => draw();
-    mapImg.src = `/${ctx.manifest['tiles/explore_map']}`;
+    mapImg.src = assetUrl(ctx.manifest['tiles/explore_map']);
   }
   const grass = new Image();
   if (ctx.manifest['tiles/grass']) {
     grass.onload = () => draw();
-    grass.src = `/${ctx.manifest['tiles/grass']}`;
+    grass.src = assetUrl(ctx.manifest['tiles/grass']);
   }
 
   const draw = () => {

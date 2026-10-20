@@ -5,12 +5,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.local.json --noEmit",
+    "dev:local": "vite --config vite.local.config.ts",
+    "build:local": "tsc --noEmit && tsc -p tsconfig.local.json --noEmit && vite build --config vite.local.config.ts"
   },
   "dependencies": {
-    "phaser": "^3.80.0"
+    "phaser": "^3.80.0",
+    "sql.js": "^1.15.1"
   },
   "devDependencies": {
+    "@types/sql.js": "^1.4.11",
     "vite": "^6.0.0"
   }
 }

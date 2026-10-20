@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { api } from '../api/client';
 import type { EquipmentState, EquipItem } from '../api/client';
 import { t } from '../i18n';
@@ -26,7 +27,7 @@ const GRADE_ORDER = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
 function icon(ctx: PanelCtx, type: string, grade: string): HTMLElement {
   const path = ctx.manifest[`equip/${type}`];
   if (path) {
-    const img = h('img', { class: 'eq-icon', src: `/${path}`, alt: type });
+    const img = h('img', { class: 'eq-icon', src: assetUrl(path), alt: type });
     const frame = ctx.manifest[`equip/frame_${grade}`];
     if (!frame) return img;
     // 등급 테두리를 아이콘 위에 겹쳐 그린다
@@ -34,7 +35,7 @@ function icon(ctx: PanelCtx, type: string, grade: string): HTMLElement {
       'span',
       { class: 'eq-wrap' },
       img,
-      h('img', { class: 'eq-frame', src: `/${frame}`, alt: '' }),
+      h('img', { class: 'eq-frame', src: assetUrl(frame), alt: '' }),
     );
   }
   return h(

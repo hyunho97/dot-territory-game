@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { api } from '../api/client';
 import type { BattleOutcome, PvpTarget, StageInfo } from '../api/client';
 import { t } from '../i18n';
@@ -327,7 +328,7 @@ export function openBattlePanel(ctx: PanelCtx): void {
               map.set(id, null);
               resolve();
             };
-            img.src = `/${path}`;
+            img.src = assetUrl(path);
           }),
       ),
     );
@@ -343,7 +344,7 @@ export function openBattlePanel(ctx: PanelCtx): void {
       const path = ctx.manifest[key];
       if (!path) return null;
       const im = new Image();
-      im.src = `/${path}`;
+      im.src = assetUrl(path);
       return im;
     };
     const canvas = h('canvas', { width: W, height: H, class: 'battle-canvas' });

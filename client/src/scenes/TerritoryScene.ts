@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import Phaser from 'phaser';
 import type { BuildingData, CharacterState, UnitData } from '../api/client';
 import { t } from '../i18n';
@@ -96,7 +97,7 @@ export class TerritoryScene extends Phaser.Scene {
       if (key) needed.add(key);
     }
     for (const id of needed) {
-      if (manifest[id]) this.load.image(id, `/${manifest[id]}`);
+      if (manifest[id]) this.load.image(id, assetUrl(manifest[id]));
     }
   }
 

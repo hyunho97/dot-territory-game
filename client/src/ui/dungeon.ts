@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { api } from '../api/client';
 import type { DungeonRun, DungeonState } from '../api/client';
 import { t } from '../i18n';
@@ -163,7 +164,11 @@ export function openDungeonPanel(ctx: PanelCtx): void {
 
     body.replaceChildren(
       ctx.manifest['dungeon/entrance']
-        ? h('img', { class: 'banner-img', src: `/${ctx.manifest['dungeon/entrance']}`, alt: '' })
+        ? h('img', {
+            class: 'banner-img',
+            src: assetUrl(ctx.manifest['dungeon/entrance']),
+            alt: '',
+          })
         : '',
       h(
         'div',

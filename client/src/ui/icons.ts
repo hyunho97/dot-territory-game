@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 import { getManifestSync } from '../api/client';
 import { h } from './dom';
 
@@ -11,7 +12,7 @@ export function iconEl(
   if (!path) return null;
   return h('img', {
     class: 'icon',
-    src: `/${path}`,
+    src: assetUrl(path),
     alt: '',
     width: size,
     height: size,

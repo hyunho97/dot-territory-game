@@ -14,6 +14,7 @@ import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
+import { LOCAL, bootLocal, openSaveManager } from 'virtual:local-boot';
 import { onSoundChange, playSfx, setSoundEnabled, soundEnabled, startBgm } from './audio';
 import {
   canInstall,
@@ -267,7 +268,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
         { class: 'btn small', onclick: () => setSoundEnabled(!soundEnabled()) },
         soundEnabled() ? t('territory.soundOn') : t('territory.soundOff'),
       ),
-      ...(pushSupported() || isIOS()
+      ...(!LOCAL && (pushSupported() || isIOS())
         ? [
             h(
               'button',
@@ -285,7 +286,9 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
             ),
           ]
         : []),
-      h('button', { class: 'btn small', onclick: () => nav.toMode() }, t('territory.logout')),
+      LOCAL
+        ? h('button', { class: 'btn small', onclick: () => openSaveManager() }, t('save.menu'))
+        : h('button', { class: 'btn small', onclick: () => nav.toMode() }, t('territory.logout')),
     );
     topbar.replaceChildren(brand, resBox, stats);
 
@@ -495,5 +498,32 @@ const nav: Nav = {
 };
 
 void registerServiceWorker();
-if (session.token) nav.afterLogin();
+if (LOCAL) {
+  // 혼자 하는 웹판: 로그인/서버 선택 없이 바로 내 영지로 (없으면 종족 선택부터)
+  const localStart = (): void =>
+    void show(async () => {
+      const servers = await api.servers();
+      const s = servers.find((x) => x.id === 1) ?? servers[0];
+      if (s.hasCharacter) return territoryScreen(await api.me(s.id));
+      return raceScreen(nav, s);
+    });
+  nav.toTitle = localStart;
+  nav.toMode = localStart;
+  nav.toServers = localStart;
+  nav.afterLogin = localStart;
+  mount(root, h('div', { class: 'screen' }, t('common.loading')));
+  bootLocal()
+    .then(localStart)
+    .catch((e) => {
+      console.error(e);
+      mount(
+        root,
+        h(
+          'div',
+          { class: 'screen' },
+          h('div', { class: 'error' }, '시작하지 못했습니다: ' + String(e)),
+        ),
+      );
+    });
+} else if (session.token) nav.afterLogin();
 else nav.toTitle();

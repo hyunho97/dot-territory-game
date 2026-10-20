@@ -1,3 +1,4 @@
+import { assetUrl } from './assetUrl';
 /**
  * 소리: 영지 배경음악(반복), 전투 연출 음악(단발), 효과음.
  * 브라우저는 사용자 조작 전에는 소리를 막으므로, 막히면 다음 클릭/터치 때 다시 시도한다.
@@ -5,9 +6,9 @@
  */
 
 const FILES = {
-  bgm: '/audio/bgm_territory.mp3',
-  battle: '/audio/bgm_battle_short.mp3',
-  upgrade: '/audio/sfx_building_upgrade.mp3',
+  bgm: assetUrl('audio/bgm_territory.mp3'),
+  battle: assetUrl('audio/bgm_battle_short.mp3'),
+  upgrade: assetUrl('audio/sfx_building_upgrade.mp3'),
 } as const;
 
 const BGM_VOLUME = 0.45;

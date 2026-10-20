@@ -1,3 +1,4 @@
+import { assetUrl } from '../assetUrl';
 const TOKEN_KEY = 'dot.token';
 const LOGIN_ID_KEY = 'dot.loginId';
 const NICK_KEY = 'dot.nickname';
@@ -398,7 +399,29 @@ export const session = {
   },
 };
 
+type LocalHandler = (
+  method: string,
+  url: string,
+  body: unknown,
+) => Promise<{ status: number; data: unknown }>;
+let localHandler: LocalHandler | null = null;
+/** 혼자 하는 웹판: 서버 대신 브라우저 안의 서버 코드를 호출한다 */
+export function setLocalHandler(h: LocalHandler): void {
+  localHandler = h;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (localHandler) {
+    let body: unknown;
+    try {
+      body = init.body ? JSON.parse(String(init.body)) : undefined;
+    } catch {
+      body = undefined;
+    }
+    const r = await localHandler(init.method ?? 'GET', path, body);
+    if (r.status >= 400) throw new ApiError((r.data as { error?: string }).error ?? 'UNKNOWN');
+    return r.data as T;
+  }
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (session.token) headers.Authorization = `Bearer ${session.token}`;
   let res: Response;
@@ -637,7 +660,7 @@ export const getManifestSync = (): Record<string, string> => manifest ?? {};
 export async function loadManifest(): Promise<Record<string, string>> {
   if (manifest) return manifest;
   try {
-    const res = await fetch('/manifest.json');
+    const res = await fetch(assetUrl('manifest.json'));
     manifest = ((await res.json()) as { sprites: Record<string, string> }).sprites;
   } catch {
     manifest = {};

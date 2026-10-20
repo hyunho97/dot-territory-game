@@ -7,3 +7,4 @@ dist
 *.db-wal
 client/dist
 server/backups
+client/dist-local
