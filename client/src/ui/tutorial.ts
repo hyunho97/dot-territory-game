@@ -84,7 +84,7 @@ export function guideEl(step: TutorialStep, onSkip?: () => void): HTMLElement {
 }
 
 /** 처음 접속 시 보여 주는 게임 흐름 소개 */
-export function openIntro(): void {
+export function openIntro(onClose?: () => void): void {
   const body = h(
     'div',
     { class: 'modal-body' },
@@ -98,7 +98,7 @@ export function openIntro(): void {
     ),
     h('p', { class: 'pro' }, t('tutorial.introEnd')),
   );
-  openModal(t('tutorial.introTitle'), body, () => undefined);
+  openModal(t('tutorial.introTitle'), body, () => onClose?.());
 }
 
 /** 튜토리얼을 모두 마쳤을 때 안내 (앞으로 할 수 있는 것들) */

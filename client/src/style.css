@@ -1363,3 +1363,28 @@ body {
   vertical-align: middle;
   cursor: pointer;
 }
+
+/* 튜토리얼: 눌러야 할 하단 버튼 위에서 위아래로 움직이는 화살표 */
+.dock-btn {
+  position: relative;
+}
+.dock-arrow {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  color: var(--gold);
+  font-size: 18px;
+  text-shadow: 0 0 6px #000;
+  pointer-events: none;
+  animation: dock-bounce 0.8s ease-in-out infinite;
+}
+@keyframes dock-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, 6px);
+  }
+}

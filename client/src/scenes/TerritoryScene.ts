@@ -33,7 +33,11 @@ export interface TerritoryInit {
   spriteTiers: number[];
   /** 건물 이미지를 클릭했을 때 (건설/업그레이드 창 열기). 빈 터를 눌렀으면 그 자리(spot)도 함께 */
   onBuildingClick?: (type: string, spot?: { x: number; y: number }) => void;
-  /** 건물을 새 칸으로 옮긴다. 실패하면 사유 문구를 돌려준다 */
+  /** 새 건물을 고른 칸에 짓는다. 실패하면 사유 문구를 돌려준다 */
+  onPlaceBuilding?: (type: string, x: number, y: number) => Promise<string | null>;
+  /** 튜토리얼 진행 중: 건물 이동처럼 안내 밖의 조작을 숨긴다 */
+  tutorialActive?: boolean;
+  /** 건물 이동 */
   onMoveBuilding?: (buildingId: number, x: number, y: number) => Promise<string | null>;
   /** 화면에 표시 중이던 건설/업그레이드 타이머가 끝났을 때 (서버 상태를 다시 받아 오기 위함) */
   onTimerDone?: () => void;
@@ -426,6 +430,8 @@ export class TerritoryScene extends Phaser.Scene {
   // 아래 값들은 건물을 짓거나 옮겨 화면이 다시 그려져도 유지된다
   private moveMode = false;
   private moveSelected: number | null = null;
+  /** 새 건물을 놓을 자리를 고르는 중이면 그 건물 종류 */
+  private placing: string | null = null;
   private view: { x: number; y: number; z: number; r: number } | null = null;
 
   constructor() {
@@ -437,6 +443,14 @@ export class TerritoryScene extends Phaser.Scene {
     this.timers = [];
     this.doneSignaled = false;
     this.initWall = Date.now();
+  }
+
+  /** 건설 창에서 [건설]을 누르면: 지을 자리를 직접 고르는 모드로 들어간다 */
+  beginPlacement(type: string): void {
+    this.placing = type;
+    this.moveMode = false;
+    this.moveSelected = null;
+    this.scene.restart(this.init_);
   }
 
   preload(): void {
@@ -585,11 +599,12 @@ export class TerritoryScene extends Phaser.Scene {
       gridG.clear();
       selG.clear();
       previewG.clear();
-      gridG.setVisible(this.moveMode);
-      for (const o of ghostObjs) (o as Phaser.GameObjects.Image).setVisible(!this.moveMode);
-      if (!this.moveMode) return;
-      const others = rectsExcept(this.moveSelected);
-      const n = this.moveSelected === null ? 1 : sizeOfSelected();
+      const editing = this.moveMode || this.placing !== null;
+      gridG.setVisible(editing);
+      for (const o of ghostObjs) (o as Phaser.GameObjects.Image).setVisible(!editing);
+      if (!editing) return;
+      const others = rectsExcept(this.placing ? null : this.moveSelected);
+      const n = this.placing || this.moveSelected === null ? 1 : sizeOfSelected();
       for (let i = -R; i <= R; i++)
         for (let j = -R; j <= R; j++) {
           if (!fits(R, { i, j, n: 1 }, others)) continue;
@@ -606,7 +621,7 @@ export class TerritoryScene extends Phaser.Scene {
           .fillStyle(0x4fd8ff, 0.18)
           .fillPoints(diamondPts({ i: sel.x, j: sel.y, n: sel.reserve }, 1), true);
       }
-      if (target && sel) {
+      if (target && (sel || this.placing)) {
         const pts = diamondPts({ i: target.i, j: target.j, n }, 1);
         previewG.fillStyle(target.ok ? 0x3be07a : 0xff4d4d, 0.4).fillPoints(pts, true);
         previewG.lineStyle(3, target.ok ? 0x3be07a : 0xff4d4d, 1).strokePoints(pts, true);
@@ -774,7 +789,7 @@ export class TerritoryScene extends Phaser.Scene {
       for (const o of hits) {
         o.setInteractive({ useHandCursor: true });
         o.on('pointerup', () => {
-          if (dragged) return;
+          if (dragged || this.placing) return;
           if (this.moveMode) {
             // 이동 모드: 지은 건물을 눌러 고른다 (영주관은 못 옮김)
             if (opts.ghost) return;
@@ -845,20 +860,48 @@ export class TerritoryScene extends Phaser.Scene {
     // ── 이동 모드: 놓을 칸 고르기 ──
     const aimAt = (ptr: Phaser.Input.Pointer): void => {
       const sel = blds.find((b) => b.id === this.moveSelected);
-      if (!this.moveMode || !sel) return;
+      if (!this.placing && (!this.moveMode || !sel)) return;
       const [wx, wy] = toWorld(ptr);
       const [pi, pj] = screenToIso(wx, wy);
-      const n = sel.reserve;
+      const n = this.placing ? 1 : (sel?.reserve ?? 1);
       const i = Math.round(pi - (n - 1) / 2);
       const j = Math.round(pj - (n - 1) / 2);
-      target = { i, j, ok: fits(R, { i, j, n }, rectsExcept(sel.id)) };
+      target = {
+        i,
+        j,
+        ok: fits(R, { i, j, n }, rectsExcept(this.placing ? null : (sel?.id ?? null))),
+      };
       redrawMoveMarks();
     };
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
       if (!ptr.isDown) aimAt(ptr);
     });
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer, over: unknown[]) => {
-      if (dragged || !this.moveMode || this.moveSelected === null || over.length > 0) return;
+      if (dragged || over.length > 0) return;
+      if (this.placing) {
+        // 새 건물: 누른 칸에 짓는다
+        aimAt(ptr);
+        if (!target) return;
+        if (!target.ok) {
+          flash(t('territory.cannotPlace'));
+          return;
+        }
+        const type = this.placing;
+        const { i, j } = target;
+        this.placing = null;
+        target = null;
+        refreshHint();
+        redrawMoveMarks();
+        void this.init_.onPlaceBuilding?.(type, i, j).then((err) => {
+          if (!err) return;
+          flash(err);
+          this.placing = type; // 실패하면 다시 고르게 한다
+          refreshHint();
+          redrawMoveMarks();
+        });
+        return;
+      }
+      if (!this.moveMode || this.moveSelected === null) return;
       aimAt(ptr);
       const sel = blds.find((b) => b.id === this.moveSelected);
       if (!sel || !target) return;
@@ -968,6 +1011,14 @@ export class TerritoryScene extends Phaser.Scene {
       return b;
     };
     const moveBtn = hudBtn(vw - 12, 44, '', () => {
+      if (this.placing) {
+        // 건물 놓기 취소
+        this.placing = null;
+        target = null;
+        redrawMoveMarks();
+        refreshHint();
+        return;
+      }
       this.moveMode = !this.moveMode;
       this.moveSelected = null;
       target = null;
@@ -986,14 +1037,24 @@ export class TerritoryScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(10);
     refreshHint = (): void => {
-      moveBtn.setText(this.moveMode ? t('territory.moveOff') : t('territory.moveOn'));
-      moveBtn.setBackgroundColor(this.moveMode ? '#1f6f8f' : '#2e2548');
+      moveBtn.setText(
+        this.placing
+          ? t('territory.placeCancel')
+          : this.moveMode
+            ? t('territory.moveOff')
+            : t('territory.moveOn'),
+      );
+      moveBtn.setBackgroundColor(this.placing ? '#8f3a1f' : this.moveMode ? '#1f6f8f' : '#2e2548');
+      // 튜토리얼 중에는 건물 이동을 막는다 (건물 놓기 취소는 가능)
+      moveBtn.setVisible(!this.init_.tutorialActive || this.placing !== null);
       hint.setText(
-        !this.moveMode
-          ? t('territory.villageHint')
-          : this.moveSelected === null
-            ? t('territory.movePick')
-            : t('territory.movePlace'),
+        this.placing
+          ? t('territory.placeHint', { name: t(`building.${this.placing}`) })
+          : !this.moveMode
+            ? t('territory.villageHint')
+            : this.moveSelected === null
+              ? t('territory.movePick')
+              : t('territory.movePlace'),
       );
     };
     refreshHint();
@@ -1024,6 +1085,7 @@ export class TerritoryScene extends Phaser.Scene {
       world.setVisible(!panoOn);
       troopLayer.setVisible(!panoOn);
       for (const b of [moveBtn, zoomIn, zoomOut, hint]) b.setVisible(!panoOn);
+      if (!panoOn) refreshHint(); // 이동 버튼 표시 여부를 다시 맞춘다
       toggle.setText(panoOn ? t('territory.viewVillage') : t('territory.viewPano'));
     });
 

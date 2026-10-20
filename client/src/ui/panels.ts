@@ -25,8 +25,8 @@ export const RES_COLORS: Record<string, string> = {
 
 export interface PanelCtx {
   getChar(): CharacterState;
-  /** 영지 화면에서 빈 터를 눌러 건설 창을 열었을 때, 그 건물을 지을 자리 */
-  spotFor?(type: string): { x: number; y: number } | undefined;
+  /** [건설]을 누르면 건설 창을 닫고, 영지 화면에서 지을 자리를 직접 고르게 한다 */
+  beginPlacement?(type: string): void;
   /** 서버에서 최신 영지 상태를 다시 받아 상단 바/맵에 반영 */
   refresh(): Promise<CharacterState>;
   race: RaceData;
@@ -72,6 +72,13 @@ const openModals = new Set<() => void>();
 /** 화면 전환/로그아웃 시 열려 있는 모달을 모두 닫는다 (모달별 타이머 정리 콜백 포함) */
 export function closeAllModals(): void {
   for (const close of [...openModals]) close();
+}
+
+/** 맨 위 창의 머리줄(닫기 버튼 앞)에 버튼을 하나 추가한다 */
+export function addHeadButton(label: string, onclick: () => void): void {
+  const heads = document.querySelectorAll('.modal-overlay .modal-head');
+  const head = heads[heads.length - 1];
+  if (head) head.insertBefore(h('button', { class: 'btn', onclick }, label), head.lastElementChild);
 }
 
 export function openModal(
@@ -439,7 +446,11 @@ export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
           err.textContent = '';
           (btn as HTMLButtonElement).disabled = true;
           try {
-            await api.build(ch.serverId, def.id, ctx.spotFor?.(def.id));
+            if (ctx.beginPlacement) {
+              ctx.beginPlacement(def.id);
+              return;
+            }
+            await api.build(ch.serverId, def.id);
             await ctx.refresh();
           } catch (e) {
             err.textContent = errMsg(e);

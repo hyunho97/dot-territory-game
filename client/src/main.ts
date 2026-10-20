@@ -5,7 +5,14 @@ import type { CharacterState, QuestView, ServerInfo } from './api/client';
 import { errorMessage, t } from './i18n';
 import { h, mount } from './ui/dom';
 import { describeEvent } from './ui/eventText';
-import { RES_COLORS, closeAllModals, openBuildingPanel, openExplorePanel } from './ui/panels';
+import {
+  RES_COLORS,
+  addHeadButton,
+  closeAllModals,
+  openBuildingPanel,
+  openExplorePanel,
+} from './ui/panels';
+import type { TerritoryScene } from './scenes/TerritoryScene';
 import type { PanelCtx } from './ui/panels';
 import { openBarracksPanel } from './ui/barracks';
 import { openBattlePanel } from './ui/battle';
@@ -100,7 +107,6 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     import.meta.env.DEV && previewLv >= 1 ? { ...c, territoryLevel: previewLv } : c;
   ch = withPreview(ch);
 
-  let lastSpot: { type: string; x: number; y: number } | null = null;
   const topbar = h('div', { class: 'topbar' });
   const dock = h('div', { class: 'dock' });
   const sceneInit = () => ({
@@ -111,11 +117,36 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     spriteTiers,
     highlightType: highlightBuilding(tutorialStep()),
     onTimerDone: () => void ctx.refresh().catch(() => undefined),
+    tutorialActive: !!tutorialStep(),
     onBuildingClick: (type: string, spot?: { x: number; y: number }) => {
+      // 빈 터("+")는 건설 창, 지은 막사/대장간/교역소/연구소는 각자의 기능 창, 나머지는 건물 창
+      const isGhost = !!spot;
+      const fn = isGhost ? undefined : BUILDING_PANEL[type];
       const s = tutorialStep();
-      if (s && s.target !== 'territory') return; // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
-      lastSpot = spot ? { type, ...spot } : null; // 빈 터를 눌러 열었으면 그 자리에 짓는다
+      // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
+      if (s && (fn ? fn.dock : 'territory') !== s.target) return;
+      const done = ch.buildings.some(
+        (b) => b.type === type && (b.finishAt === null || b.finishAt <= ch.serverNow),
+      );
+      if (fn && done) {
+        fn.open(ctx);
+        if (!s)
+          addHeadButton(t('territory.manageBuilding'), () => {
+            closeAllModals();
+            openBuildingPanel(ctx, type);
+          });
+        return;
+      }
       openBuildingPanel(ctx, type);
+    },
+    onPlaceBuilding: async (type: string, x: number, y: number): Promise<string | null> => {
+      try {
+        await api.build(ch.serverId, type, { x, y });
+        await ctx.refresh();
+        return null;
+      } catch (e) {
+        return errorMessage(e instanceof ApiError ? e.code : 'UNKNOWN');
+      }
     },
     onMoveBuilding: async (id: number, x: number, y: number): Promise<string | null> => {
       try {
@@ -184,7 +215,40 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       },
       iconEl(icon, 28, manifest) ?? h('span', { class: 'dock-ph' }),
       h('span', { class: 'dock-label' }, label),
+      step && key === step.target ? h('span', { class: 'dock-arrow' }, '▼') : null,
     );
+  };
+
+  // 건물을 눌렀을 때 열리는 기능 창 (지은 건물만)
+  const BUILDING_PANEL: Record<string, { dock: DockKey; open: (c: PanelCtx) => void }> = {
+    barracks: { dock: 'barracks', open: openBarracksPanel },
+    smithy: { dock: 'smithy', open: openSmithyPanel },
+    market: { dock: 'market', open: openMarketPanel },
+    lab: { dock: 'research', open: openResearchPanel },
+  };
+
+  const openQuest = (): void =>
+    openQuestPanel(ctx, (q) => {
+      questBadge = hasClaimable(q);
+      applyTutorial(q.tutorial);
+      renderTop();
+    });
+  // 튜토리얼이 다음 단계로 넘어가면 해야 할 창을 바로 열어 준다 (보상 수령 단계는 퀘스트 창)
+  const openStepTarget = (step: ReturnType<typeof tutorialStep>): void => {
+    if (!step) return;
+    closeAllModals();
+    if (step.ready) return openQuest();
+    switch (step.target) {
+      case 'territory':
+        return openBuildingPanel(ctx, highlightBuilding(step) ?? undefined);
+      case 'barracks':
+        return openBarracksPanel(ctx);
+      case 'explore':
+        return openExplorePanel(ctx);
+      case 'battle':
+        return openBattlePanel(ctx);
+      default:
+    }
   };
 
   // 튜토리얼 상태 갱신: 처음이면 소개, 모두 끝나면 완료 안내
@@ -197,7 +261,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       try {
         if (!localStorage.getItem(key)) {
           localStorage.setItem(key, '1');
-          openIntro();
+          openIntro(() => openStepTarget(tutorialStep())); // 소개를 닫으면 첫 단계 창을 열어 준다
         }
       } catch {
         /* 저장소를 못 쓰는 환경이면 소개를 건너뜀 */
@@ -206,7 +270,10 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     const stepKey = step ? `${step.id}${step.ready}` : '';
     if (stepKey !== lastStepKey) {
       lastStepKey = stepKey;
-      if (!first) game?.scene.getScene('Territory')?.scene.restart(sceneInit()); // 강조 건물 갱신
+      if (!first) {
+        game?.scene.getScene('Territory')?.scene.restart(sceneInit()); // 강조 건물 갱신
+        openStepTarget(step);
+      }
     }
     if (step) hadStep = true;
     else if (hadStep) {
@@ -365,12 +432,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
         'button',
         {
           class: `dock-btn${questBadge ? ' badge-on' : ''}${tutorialStep()?.target === 'quest' ? ' hl' : ''}`,
-          onclick: () =>
-            openQuestPanel(ctx, (q) => {
-              questBadge = hasClaimable(q);
-              applyTutorial(q.tutorial);
-              renderTop();
-            }),
+          onclick: openQuest,
         },
         iconEl('icons/quest', 28, manifest) ?? '',
         h('span', { class: 'dock-label' }, t('territory.tabQuest')),
@@ -399,7 +461,10 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
 
   const ctx: PanelCtx = {
     getChar: () => ch,
-    spotFor: (type) => (lastSpot?.type === type ? { x: lastSpot.x, y: lastSpot.y } : undefined),
+    beginPlacement: (type) => {
+      closeAllModals();
+      (game?.scene.getScene('Territory') as TerritoryScene | undefined)?.beginPlacement(type);
+    },
     refresh: async () => {
       const sig = (c: CharacterState) =>
         JSON.stringify([
