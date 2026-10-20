@@ -139,6 +139,9 @@ if (!charCols.includes('upgrade_finish_at'))
 const bldCols = (db.prepare('PRAGMA table_info(buildings)').all() as { name: string }[]).map(
   (c) => c.name,
 );
+// placed=0 이면 아직 격자 위치가 정해지지 않은 건물(예전 저장분 포함): 처음 볼 때 빈자리에 자동 배치
+if (!bldCols.includes('placed'))
+  db.exec('ALTER TABLE buildings ADD COLUMN placed INTEGER NOT NULL DEFAULT 0');
 if (!bldCols.includes('levelup_to')) db.exec('ALTER TABLE buildings ADD COLUMN levelup_to INTEGER');
 if (!bldCols.includes('levelup_finish_at'))
   db.exec('ALTER TABLE buildings ADD COLUMN levelup_finish_at INTEGER');

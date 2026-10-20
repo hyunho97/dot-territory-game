@@ -26,6 +26,7 @@ import { registerExtraRoutes } from './extra.js';
 import { battleHistory, stageList, startPveBattle } from '../services/battleService.js';
 import {
   build,
+  moveBuilding,
   upgradeBuilding,
   exploreState,
   sendExpedition,
@@ -180,10 +181,32 @@ export function registerRoutes(app: FastifyInstance): void {
 
   app.post('/api/building/build', async (req) => {
     const userId = requireUser(req);
-    const { server, type } = (req.body ?? {}) as { server?: number; type?: string };
+    const { server, type, x, y } = (req.body ?? {}) as {
+      server?: number;
+      type?: string;
+      x?: number;
+      y?: number;
+    };
     const cid = characterIdOf(userId, Number(server));
-    build(cid, String(type ?? ''));
+    build(
+      cid,
+      String(type ?? ''),
+      x === undefined || y === undefined ? undefined : { x: Number(x), y: Number(y) },
+    );
     recordEvent(cid, 'build', 1, String(type ?? ''));
+    return getCharacter(userId, Number(server));
+  });
+
+  app.post('/api/building/move', async (req) => {
+    const userId = requireUser(req);
+    const { server, buildingId, x, y } = (req.body ?? {}) as {
+      server?: number;
+      buildingId?: number;
+      x?: number;
+      y?: number;
+    };
+    const cid = characterIdOf(userId, Number(server));
+    moveBuilding(cid, Number(buildingId), Number(x), Number(y));
     return getCharacter(userId, Number(server));
   });
 

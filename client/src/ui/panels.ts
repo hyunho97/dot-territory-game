@@ -25,6 +25,8 @@ export const RES_COLORS: Record<string, string> = {
 
 export interface PanelCtx {
   getChar(): CharacterState;
+  /** 영지 화면에서 빈 터를 눌러 건설 창을 열었을 때, 그 건물을 지을 자리 */
+  spotFor?(type: string): { x: number; y: number } | undefined;
   /** 서버에서 최신 영지 상태를 다시 받아 상단 바/맵에 반영 */
   refresh(): Promise<CharacterState>;
   race: RaceData;
@@ -437,7 +439,7 @@ export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
           err.textContent = '';
           (btn as HTMLButtonElement).disabled = true;
           try {
-            await api.build(ch.serverId, def.id);
+            await api.build(ch.serverId, def.id, ctx.spotFor?.(def.id));
             await ctx.refresh();
           } catch (e) {
             err.textContent = errMsg(e);

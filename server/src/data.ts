@@ -102,12 +102,14 @@ export const units = load<{ units: UnitData[] }>('units.json');
 export const buildings = load<{
   categories: string[];
   upgrade: { costGrowth: number; timeGrowth: number };
+  footprint: Record<string, number[]> & { default: number[] };
   spriteTiers: number[];
   buildings: BuildingDef[];
 }>('buildings.json');
 export const territoryLevels = load<{
   levels: {
     level: number;
+    landRadius?: number;
     maxTroops: number;
     unlockTier: number;
     cost?: Record<string, number>;

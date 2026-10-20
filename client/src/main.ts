@@ -100,6 +100,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     import.meta.env.DEV && previewLv >= 1 ? { ...c, territoryLevel: previewLv } : c;
   ch = withPreview(ch);
 
+  let lastSpot: { type: string; x: number; y: number } | null = null;
   const topbar = h('div', { class: 'topbar' });
   const dock = h('div', { class: 'dock' });
   const sceneInit = () => ({
@@ -110,10 +111,20 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     spriteTiers,
     highlightType: highlightBuilding(tutorialStep()),
     onTimerDone: () => void ctx.refresh().catch(() => undefined),
-    onBuildingClick: (type: string) => {
+    onBuildingClick: (type: string, spot?: { x: number; y: number }) => {
       const s = tutorialStep();
       if (s && s.target !== 'territory') return; // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
+      lastSpot = spot ? { type, ...spot } : null; // 빈 터를 눌러 열었으면 그 자리에 짓는다
       openBuildingPanel(ctx, type);
+    },
+    onMoveBuilding: async (id: number, x: number, y: number): Promise<string | null> => {
+      try {
+        await api.moveBuilding(ch.serverId, id, x, y);
+        await ctx.refresh();
+        return null;
+      } catch (e) {
+        return errorMessage(e instanceof ApiError ? e.code : 'UNKNOWN');
+      }
     },
   });
   // 서버 시각 기준 시계 + 일꾼(동시 건설 슬롯) 표시. 1초마다 갱신
@@ -388,12 +399,14 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
 
   const ctx: PanelCtx = {
     getChar: () => ch,
+    spotFor: (type) => (lastSpot?.type === type ? { x: lastSpot.x, y: lastSpot.y } : undefined),
     refresh: async () => {
       const sig = (c: CharacterState) =>
         JSON.stringify([
           c.territoryLevel,
           c.totalTroops,
-          c.buildings.map((b) => [b.id, b.level, b.finishAt, b.upgradeFinishAt]),
+          c.landRadius,
+          c.buildings.map((b) => [b.id, b.level, b.finishAt, b.upgradeFinishAt, b.x, b.y, b.size]),
           tutorialStep()?.id ?? null,
         ]);
       const before = sig(ch);

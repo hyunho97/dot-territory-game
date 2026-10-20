@@ -6,6 +6,8 @@ import { grantRandomEquipment } from './equipmentGrant.js';
 import { addSpeedup } from './speedupGrant.js';
 import { rollExpeditionEvent } from './exploreEvents.js';
 import type { BuildingDef } from '../data.js';
+import { autoSpot, fits, footprintOf, hallRect, landRadius } from './layoutRules.js';
+import type { Rect } from './layoutRules.js';
 
 export class GameError extends Error {
   constructor(
@@ -25,6 +27,9 @@ interface BuildingRow {
   upgrade_finish_at: number | null;
   levelup_to: number | null;
   levelup_finish_at: number | null;
+  position_x: number;
+  position_y: number;
+  placed: number;
 }
 
 function defOf(type: string): BuildingDef | undefined {
@@ -43,7 +48,7 @@ function isBusy(b: BuildingRow, now: number): boolean {
 function loadBuildings(characterId: number): BuildingRow[] {
   return db
     .prepare(
-      'SELECT id, type, level, upgrade_finish_at, levelup_to, levelup_finish_at FROM buildings WHERE character_id = ?',
+      'SELECT id, type, level, upgrade_finish_at, levelup_to, levelup_finish_at, position_x, position_y, placed FROM buildings WHERE character_id = ?',
     )
     .all(characterId) as unknown as BuildingRow[];
 }
@@ -359,18 +364,124 @@ export function overview(characterId: number, now = Date.now()) {
   };
 }
 
-export function listBuildings(characterId: number) {
-  return loadBuildings(characterId).map((b) => ({
-    id: b.id,
-    type: b.type,
-    level: b.level,
-    finishAt: b.upgrade_finish_at,
-    upgradeTo: b.levelup_to,
-    upgradeFinishAt: b.levelup_finish_at,
-  }));
+/** 건물이 (업그레이드 중이면 올라갈 레벨까지 고려해) 차지할 칸 수 */
+function reserveSize(b: BuildingRow): number {
+  return footprintOf(b.type, Math.max(b.level, b.levelup_to ?? 0));
 }
 
-export function build(characterId: number, type: string): void {
+const rectOf = (b: BuildingRow): Rect => ({ i: b.position_x, j: b.position_y, n: reserveSize(b) });
+
+/** 영주관을 뺀 건물들의 차지 칸 (except 가 있으면 그 건물은 제외) */
+function occupied(blds: BuildingRow[], except?: number): Rect[] {
+  return blds
+    .filter((b) => b.type !== 'town_hall' && b.placed === 1 && b.id !== except)
+    .map(rectOf);
+}
+
+/**
+ * 자동 배치용: 건물마다 "다 자랐을 때의 크기"만큼 자리를 비워 둔다.
+ * 그래야 나중에 업그레이드로 건물이 커져도 이웃 건물에 막히지 않는다.
+ */
+function grownRects(blds: BuildingRow[]): Rect[] {
+  return blds
+    .filter((b) => b.type !== 'town_hall' && b.placed === 1)
+    .map((b) => ({
+      i: b.position_x,
+      j: b.position_y,
+      n: Math.max(reserveSize(b), footprintOf(b.type, 99)),
+    }));
+}
+
+/** 새 건물을 놓을 자동 자리: 자랄 공간까지 남기는 자리를 먼저, 없으면 빈 칸이라도 */
+function pickSpot(
+  radius: number,
+  type: string,
+  blds: BuildingRow[],
+): { i: number; j: number } | null {
+  return (
+    autoSpot(radius, footprintOf(type, 99), grownRects(blds)) ??
+    autoSpot(radius, footprintOf(type, 1), occupied(blds))
+  );
+}
+
+/** 아직 자리가 없는 건물(예전 저장분 등)을 영주관 가까운 빈자리에 배치한다 */
+function ensurePlaced(characterId: number, blds: BuildingRow[], level: number): void {
+  const todo = blds
+    .filter((b) => b.type !== 'town_hall' && b.placed === 0)
+    .sort((a, c) => a.id - c.id);
+  if (todo.length === 0) return;
+  const radius = landRadius(level);
+  for (const b of todo) {
+    const n = reserveSize(b);
+    // 땅이 모자라면 (이론상) 반경을 넓혀서라도 둔다
+    let spot = pickSpot(radius, b.type, blds);
+    for (let r = radius + 1; !spot && r < radius + 10; r++) spot = autoSpot(r, n, occupied(blds));
+    if (!spot) continue;
+    db.prepare('UPDATE buildings SET position_x = ?, position_y = ?, placed = 1 WHERE id = ?').run(
+      spot.i,
+      spot.j,
+      b.id,
+    );
+    b.position_x = spot.i;
+    b.position_y = spot.j;
+    b.placed = 1;
+  }
+}
+
+function levelOf(characterId: number): number {
+  const row = db.prepare('SELECT territory_level FROM characters WHERE id = ?').get(characterId) as
+    { territory_level: number } | undefined;
+  return row?.territory_level ?? 1;
+}
+
+export function listBuildings(characterId: number) {
+  const level = levelOf(characterId);
+  const blds = loadBuildings(characterId);
+  ensurePlaced(characterId, blds, level);
+  return blds.map((b) => {
+    const hr = b.type === 'town_hall' ? hallRect(level) : null;
+    return {
+      id: b.id,
+      type: b.type,
+      level: b.level,
+      finishAt: b.upgrade_finish_at,
+      upgradeTo: b.levelup_to,
+      upgradeFinishAt: b.levelup_finish_at,
+      /** 격자 위치(차지한 칸 중 가장 작은 i, j)와 현재 한 변 칸 수 */
+      x: hr ? hr.i : b.position_x,
+      y: hr ? hr.j : b.position_y,
+      size: hr ? hr.n : footprintOf(b.type, b.level),
+      /** 업그레이드가 끝났을 때의 크기까지 고려해 비워 두어야 하는 칸 수 */
+      reserve: hr ? hr.n : reserveSize(b),
+    };
+  });
+}
+
+/** 영지 땅 반경 (칸 i, j 가 -R..R) */
+export function territoryLandRadius(level: number): number {
+  return landRadius(level);
+}
+
+/** 건물 이동: 내 땅 안의 빈자리로만 옮길 수 있다 (건설/업그레이드 중에도 가능) */
+export function moveBuilding(characterId: number, buildingId: number, x: number, y: number): void {
+  settle(characterId);
+  const level = levelOf(characterId);
+  const blds = loadBuildings(characterId);
+  ensurePlaced(characterId, blds, level);
+  const b = blds.find((q) => q.id === buildingId);
+  if (!b) throw new GameError('BUILDING_NOT_FOUND', 404);
+  if (b.type === 'town_hall') throw new GameError('CANNOT_MOVE');
+  if (!Number.isInteger(x) || !Number.isInteger(y)) throw new GameError('INVALID_POSITION');
+  const r: Rect = { i: x, j: y, n: reserveSize(b) };
+  if (!fits(landRadius(level), r, occupied(blds, b.id))) throw new GameError('INVALID_POSITION');
+  db.prepare('UPDATE buildings SET position_x = ?, position_y = ?, placed = 1 WHERE id = ?').run(
+    x,
+    y,
+    b.id,
+  );
+}
+
+export function build(characterId: number, type: string, at?: { x: number; y: number }): void {
   settle(characterId);
   const now = Date.now();
   const def = defOf(type);
@@ -380,10 +491,25 @@ export function build(characterId: number, type: string): void {
     .get(characterId) as { race: string; territory_level: number };
   if (def.unlockLevel > ch.territory_level) throw new GameError('BUILDING_LOCKED');
   const blds = loadBuildings(characterId);
+  ensurePlaced(characterId, blds, ch.territory_level);
   if (blds.filter((b) => b.type === type).length >= def.maxCount)
     throw new GameError('BUILDING_MAX');
   if (blds.filter((b) => isBusy(b, now)).length >= buildSlots(ch.territory_level))
     throw new GameError('BUILD_SLOTS_FULL');
+
+  // 놓을 자리: 지정한 자리가 비어 있으면 그곳, 아니면 영주관 가까운 빈자리
+  const radius = landRadius(ch.territory_level);
+  const n = footprintOf(type, 1);
+  const taken = occupied(blds);
+  let spot: { i: number; j: number } | null =
+    at &&
+    Number.isInteger(at.x) &&
+    Number.isInteger(at.y) &&
+    fits(radius, { i: at.x, j: at.y, n }, taken)
+      ? { i: at.x, j: at.y }
+      : null;
+  spot ??= pickSpot(radius, type, blds);
+  if (!spot) throw new GameError('NO_SPACE');
 
   const costRate = raceMods(ch.race).costRate;
   const cost: Record<string, number> = {};
@@ -398,8 +524,8 @@ export function build(characterId: number, type: string): void {
     for (const [k, v] of Object.entries(cost))
       db.prepare(`UPDATE resources SET ${k} = ${k} - ? WHERE character_id = ?`).run(v, characterId);
     db.prepare(
-      'INSERT INTO buildings (character_id, type, level, upgrade_finish_at, position_x, position_y) VALUES (?,?,?,?,?,?)',
-    ).run(characterId, type, 1, now + def.buildTimeSec * 1000, blds.length, 0);
+      'INSERT INTO buildings (character_id, type, level, upgrade_finish_at, position_x, position_y, placed) VALUES (?,?,?,?,?,?,1)',
+    ).run(characterId, type, 1, now + def.buildTimeSec * 1000, spot.i, spot.j);
   });
 }
 
@@ -411,6 +537,7 @@ export function upgradeBuilding(characterId: number, buildingId: number): void {
     .prepare('SELECT race, territory_level FROM characters WHERE id = ?')
     .get(characterId) as { race: string; territory_level: number };
   const blds = loadBuildings(characterId);
+  ensurePlaced(characterId, blds, ch.territory_level);
   const b = blds.find((x) => x.id === buildingId);
   if (!b) throw new GameError('BUILDING_NOT_FOUND', 404);
   const def = defOf(b.type);
@@ -420,6 +547,10 @@ export function upgradeBuilding(characterId: number, buildingId: number): void {
   if (b.level >= ch.territory_level) throw new GameError('NEED_TERRITORY_LEVEL');
   if (blds.filter((x) => isBusy(x, now)).length >= buildSlots(ch.territory_level))
     throw new GameError('BUILD_SLOTS_FULL');
+  // 레벨이 오르면 건물이 커지므로, 커진 크기만큼 주변이 비어 있어야 한다 (건물을 옮겨서 자리를 만든다)
+  const grown: Rect = { i: b.position_x, j: b.position_y, n: footprintOf(b.type, b.level + 1) };
+  if (!fits(landRadius(ch.territory_level), grown, occupied(blds, b.id)))
+    throw new GameError('NO_SPACE_TO_GROW');
 
   const { costGrowth, timeGrowth } = buildings.upgrade;
   const costRate = raceMods(ch.race).costRate;

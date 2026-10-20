@@ -1,10 +1,17 @@
 import { db, transaction } from '../db/db.js';
-import { gameConfig, pvpConfig, races, units } from '../data.js';
+import { buildings, gameConfig, pvpConfig, races, units } from '../data.js';
 import { protectionEnd } from './pvpRules.js';
 import { unitCP } from './battleService.js';
 import { combatMultiplier, equipPct } from './bonuses.js';
 import { runRaidIfDue } from './raidService.js';
-import { GameError, ensureNodes, listBuildings, overview, settle } from './territoryService.js';
+import {
+  GameError,
+  ensureNodes,
+  listBuildings,
+  overview,
+  settle,
+  territoryLandRadius,
+} from './territoryService.js';
 
 export { GameError };
 
@@ -15,7 +22,11 @@ export interface CharacterState {
   territoryName: string;
   territoryLevel: number;
   resources: Record<string, number>;
-  buildings: { id: number; type: string; level: number; finishAt: number | null }[];
+  buildings: ReturnType<typeof listBuildings>;
+  /** 영지 땅 반경: 칸 i, j 가 -R..R 이면 내 땅 (영지 레벨이 오르면 넓어진다) */
+  landRadius: number;
+  /** 일반 건물이 다 자랐을 때의 한 변 칸 수 (자동 배치가 이만큼 자리를 남긴다) */
+  growSize: number;
   units: { unitId: string; count: number }[];
   totalTroops: number;
   totalCP: number;
@@ -83,6 +94,8 @@ export function getCharacter(userId: number, serverId: number): CharacterState |
       gold: Math.floor(r.gold),
     },
     buildings: b,
+    landRadius: territoryLandRadius(c.territory_level as number),
+    growSize: buildings.footprint.default[buildings.footprint.default.length - 1],
     units: u,
     totalTroops: u.reduce((s, x) => s + x.count, 0),
     totalCP: totalCP(c.race as string, u, equipMult),

@@ -53,6 +53,11 @@ tools/         process_sprites.py
 - 에셋 가져오기: `python tools/import_unit_sprites.py` (납품 이미지 `image/` → `assets/`, manifest 자동 등록)
 - 결투(PvP): 같은 서버 영주 대상. 규칙은 `data/pvp_config.json` — 상대 전투력 50%~150% 범위, 공격 쿨타임 10분, 신규 보호 24시간(공격하면 해제), 약탈은 (보유 자원 - 보호량(500 + 창고 레벨당 300))의 10%, 방어자는 접속 여부와 무관하게 전 병력 자동 참전. 순수 규칙: `server/src/services/pvpRules.ts`(+테스트)
 - 막사/대장간 업그레이드(Lv.1~10): 레벨당 모집/제작 속도 +5% (`speedBonus`, `data/buildings.json`)
+- **영지 땅과 건물 배치**: 영지는 격자(등각) 위에 있고, 울타리 안쪽이 내 땅이다. 영지 레벨이 오르면 땅이 넓어진다(`data/territory_levels.json` 의 `landRadius`). 영주관은 가운데 4×4 칸을 처음부터 차지할 자리로 비워 둔다.
+  - 건물은 레벨이 오르면 차지하는 칸이 커진다(`data/buildings.json` 의 `footprint`: 일반 1→2칸, 영주관 2→4칸). 커질 자리가 없으면 업그레이드가 막히고, "건물 이동"으로 자리를 만든 뒤 다시 하면 된다.
+  - 새 건물은 영주관 가까운 빈 땅에 자동 배치되고(다 자랐을 때의 크기만큼 여유를 남김), "+" 터를 눌러 지으면 그 자리에 놓인다. 위치는 서버(`buildings.position_x/y`)에 저장된다.
+  - 이동: 영지 화면 오른쪽 위 "건물 이동" → 건물을 누르고 → 놓을 칸(초록)을 누른다. 서버 `POST /api/building/move`, 규칙은 `server/src/services/layoutRules.ts` (클라이언트 `client/src/scenes/layout.ts` 와 같은 규칙).
+  - 화면: 끌어서 이동, 휠 또는 ＋/－ 로 확대·축소.
 - 건물 이미지: 종족/레벨 단계별 (`python tools/import_building_sprites.py`), 영지 화면 우측과 [영지] 패널에 표시. 이미지가 없는 종족/건물은 색 사각형
 - 밸런스: `node tools/balance_sim.mjs` (도달 시간 시뮬레이션), 리포트 `docs/BALANCE.md`, 레벨업 곡선 생성 `python tools/gen_territory_levels.py`
 

@@ -201,5 +201,9 @@
     "costGrowth": 1.7,
     "timeGrowth": 2.0
   },
+  "footprint": {
+    "default": [1, 1, 1, 2, 2, 2, 2, 2, 2, 2],
+    "town_hall": [2, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+  },
   "spriteTiers": [1, 4, 7]
 }

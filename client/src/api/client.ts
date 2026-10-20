@@ -72,7 +72,16 @@ export interface CharacterState {
     finishAt: number | null;
     upgradeTo: number | null;
     upgradeFinishAt: number | null;
+    /** 격자 위치(차지한 칸 중 가장 작은 i, j), 현재 한 변 칸 수, 비워 둘 칸 수 */
+    x: number;
+    y: number;
+    size: number;
+    reserve: number;
   }[];
+  /** 영지 땅 반경: 칸 i, j 가 -R..R 이면 내 땅 */
+  landRadius: number;
+  /** 일반 건물이 다 자랐을 때의 한 변 칸 수 */
+  growSize: number;
   units: { unitId: string; count: number }[];
   totalTroops: number;
   totalCP: number;
@@ -639,10 +648,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ server, buildingId }),
     }),
-  build: (server: number, type: string) =>
+  build: (server: number, type: string, at?: { x: number; y: number }) =>
     request<CharacterState>('/api/building/build', {
       method: 'POST',
-      body: JSON.stringify({ server, type }),
+      body: JSON.stringify({ server, type, x: at?.x, y: at?.y }),
+    }),
+  moveBuilding: (server: number, buildingId: number, x: number, y: number) =>
+    request<CharacterState>('/api/building/move', {
+      method: 'POST',
+      body: JSON.stringify({ server, buildingId, x, y }),
     }),
   explore: (server: number) => request<ExploreState>(`/api/explore?server=${server}`),
   sendExpedition: (server: number, nodeId: number, troops: number) =>
