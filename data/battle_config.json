@@ -1,5 +1,6 @@
 {
   "winnerLossRatio": 0.5,
   "loserLossRatio": 1.0,
-  "drawLossRatio": 0.5
+  "drawLossRatio": 0.5,
+  "noLossRatio": 3
 }

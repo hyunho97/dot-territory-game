@@ -118,6 +118,8 @@ export const battleConfig = load<{
   winnerLossRatio: number;
   loserLossRatio: number;
   drawLossRatio: number;
+  /** 이긴 쪽 전투력이 상대의 이 배수 이상이면 이긴 쪽은 손실이 없다 (없으면 적용 안 함) */
+  noLossRatio?: number;
 }>('battle_config.json');
 export const pve = load<{
   /** 스테이지별 하루 보상 지급 승리 횟수 상한 (초과 승리는 보상 없음) */

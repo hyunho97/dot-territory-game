@@ -93,4 +93,21 @@ describe('battle', () => {
     const r = resolveBattle(strong, weak, { ...CONFIG, loserLossRatio: 0.5 }, 5);
     assert.ok(sumCP(r.bLosses, weak) <= 300 + 1e-9);
   });
+
+  it('전투력이 noLossRatio 배 이상 차이 나면 이긴 쪽은 손실이 없다', () => {
+    const cfg: BattleConfig = { ...CONFIG, noLossRatio: 3 };
+    const tiny: Army = [{ unitId: 'militia', cp: 20, count: 10 }]; // 200
+    const huge: Army = [{ unitId: 'warrior', cp: 40, count: 20 }]; // 800 (4배)
+    const a = resolveBattle(huge, tiny, cfg, 3);
+    assert.equal(a.winner, 'A');
+    assert.equal(countOf(a.aLosses), 0);
+    assert.equal(countOf(a.bLosses), 10); // 진 쪽은 그대로 전멸
+    const b = resolveBattle(tiny, huge, cfg, 3); // 방어측이 압승해도 동일
+    assert.equal(countOf(b.bLosses), 0);
+    // 3배 미만이면 기존대로 손실 발생
+    const mid: Army = [{ unitId: 'warrior', cp: 40, count: 10 }]; // 400 (2배)
+    assert.ok(countOf(resolveBattle(mid, tiny, cfg, 3).aLosses) > 0);
+    // 옵션이 없으면 적용하지 않는다
+    assert.ok(countOf(resolveBattle(huge, tiny, CONFIG, 3).aLosses) > 0);
+  });
 });

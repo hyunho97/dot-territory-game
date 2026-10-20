@@ -15,6 +15,8 @@ export interface BattleConfig {
   winnerLossRatio: number;
   loserLossRatio: number;
   drawLossRatio: number;
+  /** 이긴 쪽 전투력이 상대의 이 배수 이상이면 이긴 쪽 손실 0 (압도적 전력 차) */
+  noLossRatio?: number;
 }
 export interface Loss {
   unitId: string;
@@ -94,6 +96,11 @@ function applyLossRatio(army: Army, cpBase: number, ratio: number, rng: () => nu
   return pickLosses(army, cpBase * ratio, rng);
 }
 
+/** 압도적 전력 차: 이긴 쪽(winCP)이 진 쪽(loseCP)의 noLossRatio 배 이상 */
+export function crushing(winCP: number, loseCP: number, config: BattleConfig): boolean {
+  return !!config.noLossRatio && winCP >= loseCP * config.noLossRatio;
+}
+
 export function resolveBattle(
   armyA: Army,
   armyB: Army,
@@ -111,11 +118,15 @@ export function resolveBattle(
   if (aCP > bCP) {
     winner = 'A';
     bLosses = applyLossRatio(armyB, bCP, config.loserLossRatio, rng);
-    aLosses = applyLossRatio(armyA, bCP, config.winnerLossRatio, rng); // 패배측 CP 기준
+    aLosses = crushing(aCP, bCP, config)
+      ? []
+      : applyLossRatio(armyA, bCP, config.winnerLossRatio, rng); // 패배측 CP 기준
   } else if (aCP < bCP) {
     winner = 'B';
     aLosses = applyLossRatio(armyA, aCP, config.loserLossRatio, rng);
-    bLosses = applyLossRatio(armyB, aCP, config.winnerLossRatio, rng);
+    bLosses = crushing(bCP, aCP, config)
+      ? []
+      : applyLossRatio(armyB, aCP, config.winnerLossRatio, rng);
   } else {
     winner = 'draw';
     aLosses = applyLossRatio(armyA, aCP, config.drawLossRatio, rng);
