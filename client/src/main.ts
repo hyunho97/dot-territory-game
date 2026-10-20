@@ -14,6 +14,18 @@ import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
+import {
+  canInstall,
+  disablePush,
+  enablePush,
+  isIOS,
+  isStandalone,
+  onPwaChange,
+  promptInstall,
+  pushEnabled,
+  pushSupported,
+  registerServiceWorker,
+} from './pwa';
 import { currentStep, guideEl, highlightBuilding, openIntro, openOutro } from './ui/tutorial';
 import type { DockKey } from './ui/tutorial';
 import { openGuildPanel } from './ui/guild';
@@ -126,6 +138,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   }, 1000);
   const logBar = h('div', { class: 'log' });
   const gameRoot = h('div', { id: 'game-root' });
+  let pushOn = false; // 이 기기에서 완료 알림을 받는 중인지
   let isAdmin = false; // 테스트용 관리자 계정이면 하단 메뉴에 관리자 버튼을 보인다
   let questBadge = false; // 받을 수 있는 퀘스트/출석 보상이 있는지
   // 튜토리얼: 튜토리얼 퀘스트가 남아 있는 동안 안내 단계의 버튼만 누를 수 있다
@@ -180,6 +193,34 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     }
   };
 
+  const say = (msg: string): void => {
+    logBar.textContent = msg;
+  };
+  const togglePush = async (): Promise<void> => {
+    try {
+      if (pushOn) {
+        await disablePush();
+        pushOn = false;
+      } else if (!pushSupported()) {
+        say(
+          isIOS() && !isStandalone() ? t('territory.notifyIos') : t('territory.notifyUnsupported'),
+        );
+        return;
+      } else {
+        const r = await enablePush();
+        if (r === 'denied') return say(t('territory.notifyDenied'));
+        if (r === 'unsupported') return say(t('territory.notifyUnsupported'));
+        pushOn = true;
+        await api.pushTest().catch(() => undefined);
+        renderTop();
+        return say(t('territory.notifyDone'));
+      }
+    } catch (e) {
+      say(errorMessage(e instanceof ApiError ? e.code : 'UNKNOWN'));
+    }
+    renderTop();
+  };
+
   const renderTop = () => {
     const chip = (...kids: (HTMLElement | string)[]) => h('span', { class: 'chip' }, ...kids);
     const brand = h(
@@ -219,6 +260,24 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       chip(workerEl),
       chip(t('territory.troopsFmt', { n: ch.totalTroops, max: ch.maxTroops })),
       chip(`${t('territory.cp')} ${ch.totalCP}`),
+      ...(pushSupported() || isIOS()
+        ? [
+            h(
+              'button',
+              { class: 'btn small', onclick: () => void togglePush() },
+              pushOn ? t('territory.notifyOff') : t('territory.notifyOn'),
+            ),
+          ]
+        : []),
+      ...(canInstall()
+        ? [
+            h(
+              'button',
+              { class: 'btn small', onclick: () => void promptInstall() },
+              t('territory.install'),
+            ),
+          ]
+        : []),
       h('button', { class: 'btn small', onclick: () => nav.toMode() }, t('territory.logout')),
     );
     topbar.replaceChildren(brand, resBox, stats);
@@ -340,12 +399,18 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       .catch(() => undefined);
 
   renderTop();
+  void pushEnabled().then((on) => {
+    pushOn = on;
+    renderTop();
+  });
+  onPwaChange(() => renderTop());
   const wrap = h('div', { class: 'territory' }, topbar, guideBox, gameRoot, dock, logBar);
 
   // Phaser는 DOM 삽입 이후에 시작
   setTimeout(async () => {
     const { startTerritoryGame } = await import('./scenes/TerritoryScene');
     game = startTerritoryGame(gameRoot, sceneInit());
+    portraitNow = (await import('./scenes/TerritoryScene')).isPortrait(gameRoot);
     // 입장: 자리를 비운 동안 있었던 일 요약 + 퀘스트 알림
     api
       .enterSession(ch.serverId)
@@ -364,6 +429,24 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       })
       .catch(() => undefined);
   }, 0);
+
+  // 화면 방향/크기가 바뀌면(모바일 회전 등) 게임 화면을 다시 만든다
+  let portraitNow: boolean | null = null;
+  let resizeTimer = 0;
+  const onResize = () => {
+    if (!document.body.contains(wrap)) return window.removeEventListener('resize', onResize);
+    clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(async () => {
+      const { startTerritoryGame, isPortrait } = await import('./scenes/TerritoryScene');
+      const p = isPortrait(gameRoot);
+      if (portraitNow === null) portraitNow = p;
+      if (p === portraitNow || !game) return;
+      portraitNow = p;
+      game.destroy(true);
+      game = startTerritoryGame(gameRoot, sceneInit());
+    }, 300);
+  };
+  window.addEventListener('resize', onResize);
 
   // 생산/건설/침공 등 서버 정산 결과를 주기적으로 반영 (하트비트 겸용)
   let tick = 0;
@@ -389,5 +472,6 @@ const nav: Nav = {
     }),
 };
 
+void registerServiceWorker();
 if (session.token) nav.afterLogin();
 else nav.toTitle();

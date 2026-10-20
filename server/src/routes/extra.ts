@@ -22,6 +22,12 @@ import {
 } from '../services/guildService.js';
 import { ADMIN_ACTIONS, adminAction, isAdmin } from '../services/adminService.js';
 import type { AdminAction } from '../services/adminService.js';
+import {
+  sendTest,
+  subscribe as pushSubscribe,
+  unsubscribe as pushUnsubscribe,
+  vapidPublicKey,
+} from '../services/pushService.js';
 import { enterSession } from '../services/sessionService.js';
 import { useSpeedup } from '../services/speedupService.js';
 import type { SpeedupTarget } from '../services/speedupService.js';
@@ -56,6 +62,20 @@ export function registerExtraRoutes(app: FastifyInstance, h: Helpers): void {
     const summary = claimAttendance(cid);
     return { summary, quests: getQuests(cid) };
   });
+
+  // ── 웹 푸시 알림 ──
+  app.get('/api/push/key', async () => ({ key: vapidPublicKey() }));
+  app.post('/api/push/subscribe', async (req) => {
+    const userId = h.requireUser(req);
+    pushSubscribe(userId, ((req.body ?? {}) as { subscription?: unknown }).subscription);
+    return { ok: true };
+  });
+  app.post('/api/push/unsubscribe', async (req) => {
+    const userId = h.requireUser(req);
+    pushUnsubscribe(userId, ((req.body ?? {}) as { endpoint?: unknown }).endpoint);
+    return { ok: true };
+  });
+  app.post('/api/push/test', async (req) => ({ sent: await sendTest(h.requireUser(req)) }));
 
   // ── 테스트용 관리자 도구 (users.is_admin = 1 계정만) ──
   app.get('/api/admin/status', async (req) => ({ admin: isAdmin(h.requireUser(req)) }));

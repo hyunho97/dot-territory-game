@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS guild_boss_part (
   day INTEGER NOT NULL DEFAULT 0, day_attacks INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (boss_id, character_id)
 );
+CREATE TABLE IF NOT EXISTS app_kv (
+  key TEXT PRIMARY KEY, value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+  p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
   created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL

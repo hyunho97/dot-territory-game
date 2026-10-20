@@ -4,6 +4,7 @@ import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import './db/db.js';
 import { registerRoutes } from './routes/index.js';
+import { startPushLoop } from './services/pushService.js';
 
 /**
  * 환경 변수 (모두 선택, 기본값은 로컬 개발용)
@@ -47,7 +48,10 @@ if (process.env.SERVE_CLIENT === '1') {
 
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? '127.0.0.1';
-app.listen({ port, host }).catch((e) => {
-  app.log.error(e);
-  process.exit(1);
-});
+app
+  .listen({ port, host })
+  .then(() => startPushLoop())
+  .catch((e) => {
+    app.log.error(e);
+    process.exit(1);
+  });

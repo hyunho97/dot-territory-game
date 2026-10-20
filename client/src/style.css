@@ -1211,3 +1211,148 @@ textarea:focus {
 .modal-body > .muted:first-child {
   margin-bottom: 4px;
 }
+
+/* ── 모바일 / 터치 ── */
+html,
+body,
+#app {
+  height: 100dvh;
+}
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+  }
+  .screen {
+    padding: 12px;
+  }
+  .title-form {
+    width: 100%;
+  }
+  .topbar {
+    gap: 6px 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .topbar .brand strong {
+    font-size: 15px;
+  }
+  .topbar .res-box {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-start;
+    flex-basis: 100%;
+  }
+  .topbar .res {
+    padding: 2px 6px 2px 4px;
+  }
+  .topbar .res-text {
+    min-width: 58px;
+    font-size: 12px;
+  }
+  .topbar .stats {
+    gap: 4px;
+  }
+  .chip {
+    padding: 1px 6px;
+    font-size: 12px;
+  }
+  .topbar .clock {
+    font-size: 12px;
+  }
+  .guide {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .guide-text {
+    font-size: 12px;
+  }
+  .guide-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  /* 하단 메뉴: 한 줄 가로 스크롤 */
+  .dock {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 6px 8px;
+    gap: 4px;
+    scrollbar-width: none;
+  }
+  .dock::-webkit-scrollbar {
+    display: none;
+  }
+  .dock-btn {
+    flex: 0 0 62px;
+    width: 62px;
+    min-height: 54px;
+    font-size: 11px;
+  }
+  .log {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  /* 모달: 전체 화면 */
+  .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal,
+  .modal.wide {
+    width: 100%;
+    max-height: none;
+    height: 100%;
+  }
+  .panel.modal {
+    padding: 10px;
+    border-width: 10px;
+    border-image-width: 10px;
+  }
+  .modal-head h2 {
+    font-size: 18px;
+  }
+  .modal-head .btn {
+    padding: 8px 12px;
+  }
+  .build-card,
+  .unit-card {
+    flex-wrap: wrap;
+  }
+  .build-card .btn,
+  .unit-card .btn,
+  .btn {
+    min-height: 40px;
+  }
+  .explore-layout {
+    flex-direction: column;
+  }
+  .explore-canvas {
+    width: 100%;
+    height: auto;
+  }
+  .eq-slots {
+    flex-wrap: wrap;
+  }
+  .result-cols {
+    flex-direction: column;
+  }
+  .race-cards {
+    flex-direction: column;
+  }
+}
+@media (max-width: 480px) {
+  .btn.small {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}

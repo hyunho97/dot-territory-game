@@ -586,6 +586,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ server, target, seconds, buildingId }),
     }),
+  pushKey: () => request<{ key: string }>('/api/push/key'),
+  pushSubscribe: (subscription: unknown) =>
+    request<{ ok: true }>('/api/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ subscription }),
+    }),
+  pushUnsubscribe: (endpoint: string) =>
+    request<{ ok: true }>('/api/push/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
+  pushTest: () => request<{ sent: number }>('/api/push/test', { method: 'POST', body: '{}' }),
   adminStatus: () => request<{ admin: boolean }>('/api/admin/status'),
   adminAction: (server: number, action: string, value?: number) =>
     request<{ ok: true }>('/api/admin/action', {

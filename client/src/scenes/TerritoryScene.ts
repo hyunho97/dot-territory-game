@@ -4,6 +4,7 @@ import { t } from '../i18n';
 import { buildingSpriteKey } from '../ui/buildingSprite';
 import { SLOT_POS, slotOf } from './layout';
 
+// 세계(건물이 놓이는 좌표계) 크기. 화면 크기는 가로/세로 모드에 따라 다르다.
 const WIDTH = 960;
 const HEIGHT = 600;
 const MAX_IMAGE_LEVEL = 10;
@@ -102,12 +103,44 @@ export class TerritoryScene extends Phaser.Scene {
   create(): void {
     const { character, buildingData, units, manifest, spriteTiers } = this.init_;
     const has = (k: string): boolean => this.textures.exists(k);
+    const vw = this.scale.width; // 화면(뷰) 크기
+    const vh = this.scale.height;
+    // 세계가 화면보다 크면(세로 모드) 드래그로 이동, 작으면 가운데에 맞춘다
+    const cam = this.cameras.main;
+    const clampCam = (): void => {
+      const maxX = Math.max(0, WIDTH - vw);
+      cam.scrollX = vw >= WIDTH ? (WIDTH - vw) / 2 : Math.min(maxX, Math.max(0, cam.scrollX));
+      cam.scrollY =
+        vh >= HEIGHT ? (HEIGHT - vh) / 2 : Math.min(HEIGHT - vh, Math.max(0, cam.scrollY));
+    };
+    cam.scrollX = (WIDTH - vw) / 2;
+    cam.scrollY = (HEIGHT - vh) / 2;
+    clampCam();
+    let dragged = false;
+    let last: { x: number; y: number } | null = null;
+    this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      dragged = false;
+      last = { x: ptr.x, y: ptr.y };
+    });
+    this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
+      if (!ptr.isDown || !last) return;
+      const dx = ptr.x - last.x;
+      const dy = ptr.y - last.y;
+      if (!dragged && Math.hypot(ptr.x - ptr.downX, ptr.y - ptr.downY) < 10) return;
+      dragged = true;
+      cam.scrollX -= dx;
+      cam.scrollY -= dy;
+      last = { x: ptr.x, y: ptr.y };
+      clampCam();
+    });
 
     // ── 바닥: 잔디 + 영주관 앞 길 ──
     if (has('tiles/grass')) {
-      this.add.tileSprite(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 'tiles/grass').setTint(0xb8c8a8);
+      this.add
+        .tileSprite(WIDTH / 2, HEIGHT / 2, WIDTH * 3, HEIGHT * 3, 'tiles/grass')
+        .setTint(0xb8c8a8);
     } else {
-      this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x2c4a2a);
+      this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH * 3, HEIGHT * 3, 0x2c4a2a);
     }
     if (has('tiles/path')) {
       const plaza = this.add.tileSprite(480, 305, 380, 230, 'tiles/path').setAlpha(0.55);
@@ -118,10 +151,11 @@ export class TerritoryScene extends Phaser.Scene {
     }
     const shade = this.add.graphics();
     shade.fillStyle(0x000000, 0.18);
-    shade.fillRect(0, 0, WIDTH, HEIGHT);
-    shade.fillStyle(0x000000, 0.22);
-    shade.fillRect(0, 0, WIDTH, 44); // 상단 여백
-    shade.fillRect(0, HEIGHT - 70, WIDTH, 70); // 하단 병력 띠
+    shade.fillRect(-WIDTH, -HEIGHT, WIDTH * 3, HEIGHT * 3);
+    const bars = this.add.graphics().setScrollFactor(0).setDepth(4);
+    bars.fillStyle(0x000000, 0.22);
+    bars.fillRect(0, 0, vw, 44); // 상단 여백
+    bars.fillRect(0, vh - 70, vw, 70); // 하단 병력 띠
 
     // ── 건물 레이어 ──
     const layer = this.add.container(0, 0);
@@ -206,7 +240,9 @@ export class TerritoryScene extends Phaser.Scene {
       // 클릭/호버
       for (const o of hits) {
         o.setInteractive({ useHandCursor: true });
-        o.on('pointerdown', () => this.init_.onBuildingClick?.(type));
+        o.on('pointerup', () => {
+          if (!dragged) this.init_.onBuildingClick?.(type);
+        });
         o.on('pointerover', () => (img as Phaser.GameObjects.Image).setTint?.(0xffffcc));
         o.on('pointerout', () => (img as Phaser.GameObjects.Image).clearTint?.());
       }
@@ -257,12 +293,12 @@ export class TerritoryScene extends Phaser.Scene {
     jobs.sort((a, c) => a.y - c.y).forEach((j) => j.run());
 
     // ── 하단: 병력 띠 ──
-    const troopLayer = this.add.container(0, 0);
+    const troopLayer = this.add.container(0, 0).setScrollFactor(0).setDepth(4);
     let i = 0;
     for (const s of character.units) {
       const def = units.find((u) => u.id === s.unitId);
       const x = 44 + i * 78;
-      const uy = HEIGHT - 36;
+      const uy = vh - 36;
       if (def && has(def.sprite)) {
         const u = this.add.image(x, uy, def.sprite).setDisplaySize(56, 56);
         troopLayer.add(u);
@@ -283,17 +319,16 @@ export class TerritoryScene extends Phaser.Scene {
     }
 
     // ── 전경 보기 토글 ──
-    const pano = this.add.container(0, 0).setVisible(false).setDepth(5);
-    pano.add(this.add.rectangle(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT, 0x15151d));
+    const pano = this.add.container(0, 0).setVisible(false).setDepth(5).setScrollFactor(0);
+    pano.add(this.add.rectangle(vw / 2, vh / 2, vw, vh, 0x15151d));
     if (has(this.imageKey)) {
-      pano.add(this.add.image(WIDTH / 2, HEIGHT / 2, this.imageKey).setDisplaySize(HEIGHT, HEIGHT));
+      const side = Math.min(vw, vh);
+      pano.add(this.add.image(vw / 2, vh / 2, this.imageKey).setDisplaySize(side, side));
     } else {
-      pano.add(
-        this.add.text(WIDTH / 2, HEIGHT / 2, t('territory.noImage'), TEXT_STYLE).setOrigin(0.5),
-      );
+      pano.add(this.add.text(vw / 2, vh / 2, t('territory.noImage'), TEXT_STYLE).setOrigin(0.5));
     }
     const toggle = this.add
-      .text(WIDTH - 12, 12, t('territory.viewPano'), {
+      .text(vw - 12, 12, t('territory.viewPano'), {
         ...TEXT_STYLE,
         fontSize: '14px',
         backgroundColor: '#2e2548',
@@ -301,6 +336,7 @@ export class TerritoryScene extends Phaser.Scene {
       })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
+      .setScrollFactor(0)
       .setDepth(10);
     let panoOn = false;
     toggle.on('pointerdown', () => {
@@ -317,6 +353,7 @@ export class TerritoryScene extends Phaser.Scene {
         strokeThickness: 3,
         color: '#cfc8e8',
       })
+      .setScrollFactor(0)
       .setDepth(10);
 
     // 남은 시간 갱신 (1초마다)
@@ -329,12 +366,28 @@ export class TerritoryScene extends Phaser.Scene {
   }
 }
 
+/** 세로(모바일) 화면인지: 가로가 좁거나 세로가 더 긴 경우 */
+export function isPortrait(parent: HTMLElement): boolean {
+  const w = parent.clientWidth || window.innerWidth;
+  const h = parent.clientHeight || window.innerHeight;
+  return w < 700 || w / Math.max(1, h) < 1.1;
+}
+
 export function startTerritoryGame(parent: HTMLElement, init: TerritoryInit): Phaser.Game {
+  let width = WIDTH;
+  let height = HEIGHT;
+  if (isPortrait(parent)) {
+    // 세로 화면: 폭 600 만 보이게 하고 나머지는 드래그로 이동
+    const w = parent.clientWidth || window.innerWidth;
+    const h = parent.clientHeight || window.innerHeight;
+    width = 600;
+    height = Math.min(1000, Math.max(480, Math.round((600 * h) / Math.max(1, w))));
+  }
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    width: WIDTH,
-    height: HEIGHT,
+    width,
+    height,
     backgroundColor: '#15151d',
     pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
