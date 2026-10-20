@@ -5,7 +5,7 @@
 const CENTER_X = 480;
 const CENTER_Y = 305;
 
-const RINGS = [
+export const RINGS = [
   { n: 6, a: 185, b: 112, start: -60 },
   { n: 11, a: 320, b: 176, start: -95 },
   { n: 12, a: 440, b: 222, start: -80 },
