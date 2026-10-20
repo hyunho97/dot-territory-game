@@ -4,16 +4,10 @@ import { t } from '../i18n';
 import { h } from './dom';
 import { RES_COLORS, errMsg, fmtDuration, openModal } from './panels';
 import type { PanelCtx } from './panels';
+import { playBattle } from './battleScene';
 
-const W = 640;
-const H = 300;
-const TOKEN = 64;
-
-interface Token {
-  unitId: string;
-  total: number;
-  dead: number;
-}
+const W = 720;
+const H = 360;
 
 /** 전투 상대(PvE 토벌 대상 또는 PvP 영주)를 같은 준비/연출/결과 흐름으로 다루기 위한 추상화 */
 interface Opponent {
@@ -30,13 +24,13 @@ export function openBattlePanel(ctx: PanelCtx): void {
   const body = h('div', { class: 'modal-body' });
   const err = h('div', { class: 'error' });
   let cancelled = false;
-  let raf = 0;
+  let stopAnim: () => void = () => undefined;
   const close = openModal(
     t('battle.heading'),
     body,
     () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      stopAnim();
     },
     true,
   );
@@ -338,20 +332,18 @@ export function openBattlePanel(ctx: PanelCtx): void {
     return map;
   };
 
-  /** 결과가 확정된 뒤 재생하는 단순 연출 (결과에 영향 없음) */
+  /** 결과가 확정된 뒤 재생하는 연출 (결과에 영향 없음) */
   const showAnimation = async (op: Opponent, out: BattleOutcome) => {
     const ids = [...new Set([...out.armyA, ...out.armyB].map((u) => u.unitId))];
     const images = await loadImages(ids);
     if (cancelled) return;
-    const mk = (army: BattleOutcome['armyA'], losses: BattleOutcome['aLosses']): Token[] =>
-      army.map((u) => ({
-        unitId: u.unitId,
-        total: u.count,
-        dead: losses.find((l) => l.unitId === u.unitId)?.count ?? 0,
-      }));
-    const tokensA = mk(out.armyA, out.aLosses);
-    const tokensB = mk(out.armyB, out.bLosses);
-
+    const loadImg = (key: string): HTMLImageElement | null => {
+      const path = ctx.manifest[key];
+      if (!path) return null;
+      const im = new Image();
+      im.src = `/${path}`;
+      return im;
+    };
     const canvas = h('canvas', { width: W, height: H, class: 'battle-canvas' });
     const skip = h('button', { class: 'btn' }, t('battle.skip'));
     body.replaceChildren(
@@ -359,127 +351,28 @@ export function openBattlePanel(ctx: PanelCtx): void {
       canvas,
       h('div', { class: 'row', style: 'margin-top:8px' }, skip),
     );
-    const g = canvas.getContext('2d')!;
-    g.imageSmoothingEnabled = false;
-
-    const pos = (side: 'A' | 'B', i: number, advance: number): [number, number] => {
-      const col = Math.floor(i / 3);
-      const row = i % 3;
-      const y = 24 + row * 84;
-      return side === 'A' ? [24 + col * 78 + advance, y] : [W - 24 - TOKEN - col * 78 - advance, y];
-    };
-
-    const drawToken = (tok: Token, side: 'A' | 'B', i: number, advance: number, p: number) => {
-      const [x, y] = pos(side, i, advance);
-      const allDead = tok.dead >= tok.total;
-      const shown = tok.total - Math.floor(tok.dead * p);
-      const alpha = allDead ? 1 - p : 1;
-      const fall = allDead ? p * 28 : 0;
-      g.save();
-      g.globalAlpha = alpha;
-      g.translate(x + TOKEN / 2, y + TOKEN / 2 + fall);
-      if (allDead) g.rotate((side === 'A' ? -1 : 1) * p * 1.3);
-      if (side === 'B') g.scale(-1, 1);
-      const img = images.get(tok.unitId);
-      if (img) g.drawImage(img, -TOKEN / 2, -TOKEN / 2, TOKEN, TOKEN);
-      else {
-        g.fillStyle = side === 'A' ? '#3f6fb5' : '#a33a3a';
-        g.fillRect(-TOKEN / 2 + 8, -TOKEN / 2 + 4, TOKEN - 16, TOKEN - 8);
-        g.strokeStyle = '#000';
-        g.lineWidth = 3;
-        g.strokeRect(-TOKEN / 2 + 8, -TOKEN / 2 + 4, TOKEN - 16, TOKEN - 8);
-      }
-      g.restore();
-      g.save();
-      g.globalAlpha = alpha;
-      g.font = '14px DotGothic16, monospace';
-      g.textAlign = 'center';
-      g.lineWidth = 4;
-      g.strokeStyle = '#000';
-      g.fillStyle = '#fff';
-      const label = `${unitName(tok.unitId)} ×${shown}`;
-      g.strokeText(label, x + TOKEN / 2, y + TOKEN + 14);
-      g.fillText(label, x + TOKEN / 2, y + TOKEN + 14);
-      g.restore();
-    };
-
-    // 원거리/마법 유닛이 있으면 접근 구간에 투사체를 날린다 (연출 전용)
-    const kindOf = (list: { unitId: string }[]): 'arrow' | 'magic' | null => {
-      const classes = list.map((u) => ctx.units.find((x) => x.id === u.unitId)?.class);
-      return classes.includes('magic') ? 'magic' : classes.includes('ranged') ? 'arrow' : null;
-    };
-    const fxImg = (name: string): HTMLImageElement | null => {
-      const path = ctx.manifest[`fx/projectile_${name}`];
-      if (!path) return null;
-      const im = new Image();
-      im.src = `/${path}`;
-      return im;
-    };
-    const fx = { arrow: fxImg('arrow'), magic: fxImg('magic') };
-    const kindA = kindOf(out.armyA);
-    const kindB = kindOf(out.armyB);
-
-    const T_APPROACH = 900;
-    const T_CLASH = 1700;
-    const T_END = 3200;
-    const start = performance.now();
-    const ease = (v: number) => 1 - (1 - v) * (1 - v);
-
-    const frame = (nowTs: number) => {
-      if (cancelled) return;
-      const e = nowTs - start;
-      g.fillStyle = '#1c2a1a';
-      g.fillRect(0, 0, W, H);
-      g.fillStyle = 'rgba(255,255,255,0.05)';
-      g.fillRect(0, H - 40, W, 40);
-      const approach = ease(Math.min(1, e / T_APPROACH));
-      const advance = approach * 190;
-      const shake = e > T_APPROACH && e < T_CLASH ? Math.sin(e * 0.08) * 4 : 0;
-      const p = Math.max(0, Math.min(1, (e - T_CLASH) / (T_END - T_CLASH)));
-      g.save();
-      g.translate(shake, 0);
-      tokensA.forEach((tk, i) => drawToken(tk, 'A', i, advance, p));
-      tokensB.forEach((tk, i) => drawToken(tk, 'B', i, advance, p));
-      g.restore();
-      for (const [side, kind] of [
-        ['A', kindA],
-        ['B', kindB],
-      ] as const) {
-        const img = kind ? fx[kind] : null;
-        if (!img || !img.complete || e < 150 || e > T_CLASH) continue;
-        for (let i = 0; i < 4; i++) {
-          const k = ((((e - 150 + i * 170) % 700) + 700) % 700) / 700;
-          const x = side === 'A' ? 80 + k * (W - 160) : W - 80 - k * (W - 160);
-          const y = 40 + i * 78 + Math.sin(k * Math.PI) * -18;
-          g.save();
-          g.translate(x, y);
-          if (side === 'B') g.scale(-1, 1);
-          g.drawImage(img, -16, -16, 32, 32);
-          g.restore();
-        }
-      }
-      if (e > T_APPROACH && e < T_CLASH + 200) {
-        const k = (e - T_APPROACH) / (T_CLASH - T_APPROACH);
-        g.strokeStyle = `rgba(255,220,120,${1 - Math.min(1, k)})`;
-        g.lineWidth = 3;
-        for (let i = 0; i < 12; i++) {
-          const a = (i / 12) * Math.PI * 2 + e * 0.01;
-          const r1 = 10 + k * 20;
-          const r2 = r1 + 14 + (i % 3) * 6;
-          g.beginPath();
-          g.moveTo(W / 2 + Math.cos(a) * r1, H / 2 + Math.sin(a) * r1);
-          g.lineTo(W / 2 + Math.cos(a) * r2, H / 2 + Math.sin(a) * r2);
-          g.stroke();
-        }
-      }
-      if (e >= T_END + 400) return showResult(op, out);
-      raf = requestAnimationFrame(frame);
-    };
-    skip.addEventListener('click', () => {
-      cancelAnimationFrame(raf);
-      showResult(op, out);
-    });
-    raf = requestAnimationFrame(frame);
+    const player = playBattle(
+      canvas,
+      out,
+      {
+        images,
+        classOf: (id) => ctx.units.find((u) => u.id === id)?.class,
+        nameOf: unitName,
+        bg: loadImg('tiles/explore_map'),
+        arrow: loadImg('fx/projectile_arrow'),
+        magic: loadImg('fx/projectile_magic'),
+        labels: {
+          me: t('battle.myCP') + ' ' + fmtCP(out.aCP),
+          enemy: t('battle.enemyCP') + ' ' + fmtCP(out.bCP),
+          win: t('battle.result.win'),
+          lose: t('battle.result.lose'),
+          draw: t('battle.result.draw'),
+        },
+      },
+      () => showResult(op, out),
+    );
+    stopAnim = player.stop;
+    skip.addEventListener('click', () => player.skip());
   };
 
   const showResult = (op: Opponent, out: BattleOutcome) => {
