@@ -38,6 +38,15 @@ const TARGETS: Record<string, DockKey> = {
   t_upgrade: 'territory',
 };
 
+/** 튜토리얼 단계에서 영지 화면에 반짝이게 할 건물 */
+export function highlightBuilding(step: TutorialStep | null): string | null {
+  if (!step || step.ready) return null;
+  if (step.id === 't_build_farm' || step.id === 't_upgrade') return 'farm';
+  if (step.id === 't_level2') return 'town_hall';
+  if (step.id === 't_train') return 'barracks';
+  return null;
+}
+
 export function currentStep(tutorial: QuestView[] | null): TutorialStep | null {
   if (!tutorial) return null;
   const index = tutorial.findIndex((q) => !q.claimed);

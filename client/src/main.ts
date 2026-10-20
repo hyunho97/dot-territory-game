@@ -14,7 +14,7 @@ import { openQuestPanel, hasClaimable } from './ui/quests';
 import { iconEl } from './ui/icons';
 import { openDungeonPanel } from './ui/dungeon';
 import { openAdminPanel } from './ui/admin';
-import { currentStep, guideEl, openIntro, openOutro } from './ui/tutorial';
+import { currentStep, guideEl, highlightBuilding, openIntro, openOutro } from './ui/tutorial';
 import type { DockKey } from './ui/tutorial';
 import { openGuildPanel } from './ui/guild';
 import { openRankingPanel } from './ui/ranking';
@@ -86,6 +86,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     units,
     manifest,
     spriteTiers,
+    highlightType: highlightBuilding(tutorialStep()),
     onBuildingClick: (type: string) => {
       const s = tutorialStep();
       if (s && s.target !== 'territory') return; // 튜토리얼 중에는 안내된 단계 밖의 조작을 막는다
@@ -131,6 +132,7 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
   let tutorial: QuestView[] | null = null;
   let tutSkipped = false; // 관리자 전용 건너뛰기
   let hadStep = false;
+  let lastStepKey = '';
   const guideBox = h('div', { class: 'guide-box' });
   const tutorialStep = () => (tutSkipped ? null : currentStep(tutorial));
 
@@ -165,6 +167,11 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
       } catch {
         /* 저장소를 못 쓰는 환경이면 소개를 건너뜀 */
       }
+    }
+    const stepKey = step ? `${step.id}${step.ready}` : '';
+    if (stepKey !== lastStepKey) {
+      lastStepKey = stepKey;
+      if (!first) game?.scene.getScene('Territory')?.scene.restart(sceneInit()); // 강조 건물 갱신
     }
     if (step) hadStep = true;
     else if (hadStep) {
@@ -295,7 +302,12 @@ async function territoryScreen(initial: CharacterState): Promise<HTMLElement> {
     getChar: () => ch,
     refresh: async () => {
       const sig = (c: CharacterState) =>
-        JSON.stringify([c.territoryLevel, c.buildings.length, c.totalTroops]);
+        JSON.stringify([
+          c.territoryLevel,
+          c.totalTroops,
+          c.buildings.map((b) => [b.id, b.level, b.finishAt, b.upgradeFinishAt]),
+          tutorialStep()?.id ?? null,
+        ]);
       const before = sig(ch);
       ch = withPreview(await api.me(ch.serverId, true)); // 접속 중 하트비트 포함
       renderTop();

@@ -168,6 +168,9 @@
   },
   "territory": {
     "level": "영지 Lv.{n}",
+    "viewPano": "전경 보기",
+    "viewVillage": "마을 보기",
+    "villageHint": "건물을 눌러 건설·업그레이드",
     "clock": "{y}년 {m}월 {d}일 {hh}:{mm}",
     "workers": "일꾼 {free}/{max}",
     "workersTip": "건설·업그레이드에 동시에 쓸 수 있는 일꾼 (놀고 있는 일꾼/전체)",
