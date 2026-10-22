@@ -63,6 +63,18 @@ export function totalCP(
   return Math.round(sum);
 }
 
+/** 병력 1명당 평균 전투력(장비·연구·길드 보정 포함) — 탐사 채집량이 여기에 비례한다 */
+export function avgCpPerTroop(characterId: number): number {
+  const row = db.prepare('SELECT race FROM characters WHERE id = ?').get(characterId) as
+    { race: string } | undefined;
+  if (!row) return 0;
+  const stock = db
+    .prepare('SELECT unit_id AS unitId, count FROM unit_stock WHERE character_id = ?')
+    .all(characterId) as unknown as { unitId: string; count: number }[];
+  const troops = stock.reduce((s, x) => s + x.count, 0);
+  return troops > 0 ? totalCP(row.race, stock, combatMultiplier(characterId)) / troops : 0;
+}
+
 export function getCharacter(userId: number, serverId: number): CharacterState | null {
   const find = db.prepare('SELECT * FROM characters WHERE user_id = ? AND server_id = ?');
   const first = find.get(userId, serverId) as Record<string, string | number> | undefined;

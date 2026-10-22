@@ -1,7 +1,9 @@
 {
   "tileSec": 30,
-  "carryPerUnit": 20,
-  "nodeCount": 10,
+  "carryPerCP": 0.85,
+  "perResource": 3,
+  "respawnMin": 30,
+  "bandAmountMult": [1, 1.6, 2.4],
   "slots": {
     "base": 1,
     "levelsPerExtra": 3
@@ -11,7 +13,7 @@
       "resource": "wood",
       "unlockLevel": 1,
       "minDist": 2,
-      "maxDist": 5,
+      "maxDist": 12,
       "amount": [300, 600],
       "weight": 3
     },
@@ -19,7 +21,7 @@
       "resource": "food",
       "unlockLevel": 1,
       "minDist": 2,
-      "maxDist": 5,
+      "maxDist": 12,
       "amount": [300, 600],
       "weight": 3
     },
@@ -27,23 +29,23 @@
       "resource": "stone",
       "unlockLevel": 1,
       "minDist": 3,
-      "maxDist": 7,
+      "maxDist": 16,
       "amount": [250, 500],
       "weight": 2
     },
     {
       "resource": "iron",
       "unlockLevel": 2,
-      "minDist": 5,
-      "maxDist": 9,
+      "minDist": 4,
+      "maxDist": 20,
       "amount": [150, 300],
       "weight": 2
     },
     {
       "resource": "gold",
       "unlockLevel": 3,
-      "minDist": 8,
-      "maxDist": 12,
+      "minDist": 6,
+      "maxDist": 24,
       "amount": [80, 200],
       "weight": 1
     }

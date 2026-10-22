@@ -83,7 +83,7 @@ export function openGuildPanel(ctx: PanelCtx): void {
           'span',
           {},
           `${t('buildPanel.cost')}: `,
-          costEl(st.createCost, ctx.getChar().resources, 1),
+          costEl(st.createCost, ctx.getChar().resources, 1, ctx.getChar().storageCap),
         ),
       ),
       h('h3', { style: 'margin-top:12px' }, t('guild.listHeading')),

@@ -136,6 +136,10 @@ if (!charCols.includes('upgrade_to'))
 if (!charCols.includes('upgrade_finish_at'))
   db.exec('ALTER TABLE characters ADD COLUMN upgrade_finish_at INTEGER');
 
+// 탐사 지점이 마지막으로 새로 나온 시간 구간(respawnMin 단위)
+if (!charCols.includes('nodes_bucket'))
+  db.exec('ALTER TABLE characters ADD COLUMN nodes_bucket INTEGER');
+
 const bldCols = (db.prepare('PRAGMA table_info(buildings)').all() as { name: string }[]).map(
   (c) => c.name,
 );

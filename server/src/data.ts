@@ -59,7 +59,14 @@ export interface NodeType {
 }
 export interface ExplorationData {
   tileSec: number;
-  carryPerUnit: number;
+  /** 보낸 병력의 전투력 1당 채집량 */
+  carryPerCP: number;
+  /** 자원 종류마다 가까운/중간/먼 곳에 이만큼씩 나온다 */
+  perResource: number;
+  /** 이 분마다 탐사 지점이 새로 나온다 */
+  respawnMin: number;
+  /** 거리 구간(가까움/중간/멈)별 자원량 배수 */
+  bandAmountMult: number[];
   amountPerLevel?: number;
   eventChance: number;
   events: {
@@ -71,7 +78,6 @@ export interface ExplorationData {
     lossRatio?: [number, number];
     speedupMin?: [number, number];
   }[];
-  nodeCount: number;
   slots: { base: number; levelsPerExtra: number };
   nodeTypes: NodeType[];
 }

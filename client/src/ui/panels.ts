@@ -116,16 +116,21 @@ export function costEl(
   cost: Record<string, number>,
   res: Record<string, number>,
   rate: number,
+  cap?: number,
 ): HTMLElement {
   const wrap = h('span', { class: 'cost' });
   for (const [k, v] of Object.entries(cost)) {
     const need = Math.ceil(v * rate);
+    const have = Math.floor(res[k] ?? 0);
+    const ok = have >= need;
+    // 모자라면 얼마나 모자란지, 창고 상한보다 크면 창고를 키워야 한다는 안내를 붙인다
+    const note = ok
+      ? ''
+      : cap !== undefined && need > cap
+        ? ` (${t('cost.short', { n: need - have })} · ${t('cost.overCap', { cap })})`
+        : ` (${t('cost.short', { n: need - have })})`;
     wrap.append(
-      h(
-        'span',
-        { class: res[k] >= need ? 'cost-ok' : 'cost-short' },
-        `${t(`resource.${k}`)} ${need}`,
-      ),
+      h('span', { class: ok ? 'cost-ok' : 'cost-short' }, `${t(`resource.${k}`)} ${need}${note}`),
     );
   }
   return wrap;
@@ -242,7 +247,7 @@ export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
           'div',
           {},
           `${t('buildPanel.cost')}: `,
-          costEl(lvCost, ch.resources, rate),
+          costEl(lvCost, ch.resources, rate, ch.storageCap),
           h(
             'span',
             { class: 'muted' },
@@ -410,7 +415,7 @@ export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
                     'div',
                     {},
                     `${t('buildPanel.cost')}: `,
-                    costEl(cost, ch.resources, rate),
+                    costEl(cost, ch.resources, rate, ch.storageCap),
                     h('span', { class: 'muted' }, `  ${t('buildPanel.time')} ${fmtDuration(sec)}`),
                   )
                 : null,
@@ -484,7 +489,7 @@ export function openBuildingPanel(ctx: PanelCtx, focusType?: string): void {
                     'div',
                     {},
                     `${t('buildPanel.cost')}: `,
-                    costEl(def.cost, ch.resources, rate),
+                    costEl(def.cost, ch.resources, rate, ch.storageCap),
                     h(
                       'span',
                       { class: 'muted' },
@@ -538,11 +543,13 @@ export function openExplorePanel(ctx: PanelCtx): void {
   const side = h('div', { class: 'explore-side' });
   const err = h('div', { class: 'error' });
   const body = h('div', { class: 'explore-layout' }, canvas, side);
-  const scale = (MAP_PX / 2 - 16) / MAP_RADIUS;
+  let radius = MAP_RADIUS; // 서버가 알려 주는 지도 반경(칸)
+  const scale = (): number => (MAP_PX / 2 - 16) / radius;
   const toPx = (x: number, y: number): [number, number] => [
-    MAP_PX / 2 + x * scale,
-    MAP_PX / 2 + y * scale,
+    MAP_PX / 2 + x * scale(),
+    MAP_PX / 2 + y * scale(),
   ];
+  let filter: string | null = null; // 찾는 자원 (없으면 전체)
 
   const mapImg = new Image();
   if (ctx.manifest['tiles/explore_map']) {
@@ -572,7 +579,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
     }
     g.strokeStyle = 'rgba(255,255,255,0.06)';
     g.lineWidth = 1;
-    for (let i = -MAP_RADIUS; i <= MAP_RADIUS; i++) {
+    for (let i = -radius; i <= radius; i++) {
       const [px] = toPx(i, 0);
       const [, py] = toPx(0, i);
       g.beginPath();
@@ -583,13 +590,13 @@ export function openExplorePanel(ctx: PanelCtx): void {
       g.stroke();
     }
     g.font = '12px DotGothic16, monospace';
-    for (const r of [3, 6, 9, 12]) {
+    for (let r = 4; r < radius; r += 4) {
       g.strokeStyle = 'rgba(255,255,255,0.18)';
       g.beginPath();
-      g.arc(MAP_PX / 2, MAP_PX / 2, r * scale, 0, Math.PI * 2);
+      g.arc(MAP_PX / 2, MAP_PX / 2, r * scale(), 0, Math.PI * 2);
       g.stroke();
       g.fillStyle = 'rgba(255,255,255,0.4)';
-      g.fillText(String(r), MAP_PX / 2 + r * scale - 12, MAP_PX / 2 - 4);
+      g.fillText(String(r), MAP_PX / 2 + r * scale() - 12, MAP_PX / 2 - 4);
     }
     if (!state) return;
     for (const e of state.expeditions) {
@@ -604,6 +611,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
     }
     for (const n of state.nodes) {
       const [x, y] = toPx(n.x, n.y);
+      g.globalAlpha = !filter || n.resource === filter ? 1 : 0.18; // 찾는 자원만 또렷하게
       g.fillStyle = RES_COLORS[n.resource] ?? '#fff';
       g.fillRect(x - 8, y - 8, 16, 16);
       g.strokeStyle = n.id === selected?.id ? '#fff' : '#000';
@@ -611,6 +619,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
       g.strokeRect(x - 8, y - 8, 16, 16);
       g.fillStyle = '#000';
       g.fillText(t(`resource.${n.resource}`).slice(0, 1), x - 5, y + 4);
+      g.globalAlpha = 1;
     }
     // 내 영지
     g.fillStyle = '#e8b830';
@@ -626,10 +635,58 @@ export function openExplorePanel(ctx: PanelCtx): void {
     if (!state) return;
     const st = state;
     const gain = ctx.race.mods.resourceGain;
+    // 병력 1명이 캐 오는 양 = 평균 전투력 × 전투력당 채집량 × 종족/연구 보정 (전투력에 비례)
+    const perTroop = st.cpPerTroop * st.carryPerCP * gain * (1 + st.carryBonus);
     const items: HTMLElement[] = [
       h('div', {}, t('explore.idle', { n: st.idleTroops })),
       h('div', { class: 'muted' }, t('explore.slots', { n: st.expeditions.length, max: st.slots })),
+      h(
+        'div',
+        { class: 'muted', 'data-refresh': st.nextRefreshAt },
+        t('explore.refreshIn', { t: fmtDuration((st.nextRefreshAt - now()) / 1000) }),
+      ),
     ];
+    // 찾는 자원 고르기: 고른 자원만 지도에 또렷하게 보이고, 가까운 순 목록이 나온다
+    const resources = [...new Set(st.nodes.map((n) => n.resource))];
+    const chips = h(
+      'div',
+      { class: 'chips' },
+      ...[null, ...resources].map((r) =>
+        h(
+          'button',
+          {
+            class: `btn small${filter === r ? ' primary' : ''}`,
+            onclick: () => {
+              filter = r;
+              draw();
+              renderSide();
+            },
+          },
+          r ? t(`resource.${r}`) : t('explore.all'),
+        ),
+      ),
+    );
+    items.push(h('div', { style: 'margin-top:8px' }, t('explore.want')), chips);
+    if (filter) {
+      const list = st.nodes
+        .filter((n) => n.resource === filter)
+        .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+      for (const n of list)
+        items.push(
+          h(
+            'button',
+            {
+              class: `btn small node-row${selected?.id === n.id ? ' primary' : ''}`,
+              onclick: () => {
+                selected = n;
+                draw();
+                renderSide();
+              },
+            },
+            t('explore.nodeRow', { d: Math.hypot(n.x, n.y).toFixed(1), n: n.remaining }),
+          ),
+        );
+    }
 
     if (!selected) {
       items.push(h('div', { class: 'muted', style: 'margin:12px 0' }, t('explore.select')));
@@ -637,7 +694,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
       const n = selected;
       const dist = Math.hypot(n.x, n.y);
       const roundTrip = Math.ceil(dist * st.tileSec) * 2;
-      const maxByNode = Math.max(1, Math.ceil(n.remaining / (st.carryPerUnit * gain)));
+      const maxByNode = perTroop > 0 ? Math.max(1, Math.ceil(n.remaining / perTroop)) : 1;
       const maxTroops = Math.max(0, Math.min(st.idleTroops, maxByNode));
       const input = h('input', {
         class: 'input',
@@ -645,16 +702,30 @@ export function openExplorePanel(ctx: PanelCtx): void {
         min: 1,
         max: maxTroops,
         value: Math.min(maxTroops, 1),
+        style: 'width:90px',
       });
       const expected = h('div', { class: 'pro' });
       const upd = () => {
         const tr = Math.max(0, Math.floor(Number(input.value) || 0));
         expected.textContent = t('explore.expected', {
-          n: Math.min(n.remaining, Math.floor(tr * st.carryPerUnit * gain)),
+          n: Math.min(n.remaining, Math.floor(tr * perTroop)),
         });
       };
       input.addEventListener('input', upd);
       upd();
+      // [최대]: 보낼 수 있는 가장 많은 병력(대기 병력과 이 지점 잔여량 중 작은 쪽)
+      const maxBtn = h(
+        'button',
+        {
+          class: 'btn small',
+          onclick: () => {
+            input.value = String(maxTroops);
+            upd();
+          },
+        },
+        t('explore.max'),
+      );
+      (maxBtn as HTMLButtonElement).disabled = maxTroops < 1;
       const send = h('button', { class: 'btn primary' }, t('explore.send'));
       (send as HTMLButtonElement).disabled = maxTroops < 1 || st.expeditions.length >= st.slots;
       send.addEventListener('click', async () => {
@@ -677,7 +748,8 @@ export function openExplorePanel(ctx: PanelCtx): void {
         h('div', {}, t('explore.remaining', { n: n.remaining })),
         h('div', {}, t('explore.roundTrip', { t: fmtDuration(roundTrip) })),
         h('label', { style: 'display:block;margin-top:8px' }, t('explore.troops')),
-        input,
+        h('div', { class: 'row', style: 'justify-content:flex-start;gap:6px' }, input, maxBtn),
+        h('div', { class: 'muted' }, t('explore.perTroop', { n: perTroop.toFixed(1) })),
         expected,
         h('div', { style: 'height:8px' }),
         send,
@@ -715,6 +787,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
   const load = async () => {
     try {
       state = await api.explore(serverId);
+      radius = state.mapRadius;
       offset = state.serverNow - Date.now();
       if (selected) selected = state.nodes.find((n) => n.id === selected!.id) ?? null;
     } catch (e) {
@@ -733,6 +806,7 @@ export function openExplorePanel(ctx: PanelCtx): void {
     let best: ExploreNode | null = null;
     let bestD = 18;
     for (const n of state.nodes) {
+      if (filter && n.resource !== filter) continue;
       const [x, y] = toPx(n.x, n.y);
       const d = Math.hypot(mx - x, my - y);
       if (d < bestD) {
@@ -754,6 +828,11 @@ export function openExplorePanel(ctx: PanelCtx): void {
       const left = (Number(el.dataset.finish) - now()) / 1000;
       el.textContent = t('explore.back', { t: fmtDuration(left) });
       if (left <= 0) finished = true;
+    });
+    side.querySelectorAll<HTMLElement>('[data-refresh]').forEach((el) => {
+      const left = (Number(el.dataset.refresh) - now()) / 1000;
+      el.textContent = t('explore.refreshIn', { t: fmtDuration(Math.max(0, left)) });
+      if (left <= 0) finished = true; // 새 탐사 지점이 나왔으면 다시 받아 온다
     });
     if (finished) tick();
   }, 1000);

@@ -74,13 +74,44 @@ export function openBarracksPanel(ctx: PanelCtx): void {
     for (const u of myUnits) {
       const locked = u.requiredTerritoryLevel > ch.territoryLevel;
       const perUnitSec = Math.ceil(u.trainTimeSec / (mods.trainSpeed * (1 + ch.trainBonus)));
+      // 지금 모집할 수 있는 최대 수: 병력 여유 / 자원으로 살 수 있는 수 중 작은 쪽
+      const byRes = Object.entries(u.cost).reduce(
+        (m, [k, v]) =>
+          Math.min(
+            m,
+            Math.floor((ch.resources[k] ?? 0) / Math.max(1, Math.ceil(v * mods.costRate))),
+          ),
+        Infinity,
+      );
+      const maxN = Math.max(0, Math.min(room, byRes));
       const input = h('input', {
         class: 'input',
         type: 'number',
         min: 1,
-        max: room,
-        value: amounts.get(u.id) ?? 1,
+        max: maxN || room,
+        value: Math.min(amounts.get(u.id) ?? 1, Math.max(1, maxN)),
       });
+      const maxHint = h(
+        'div',
+        { class: maxN > 0 ? 'pro' : 'con' },
+        maxN > 0
+          ? t('barracks.maxHint', { n: maxN, room, res: byRes })
+          : room < 1
+            ? t('barracks.maxFull')
+            : t('barracks.maxNoRes'),
+      );
+      const maxBtn = h(
+        'button',
+        {
+          class: 'btn small',
+          onclick: () => {
+            input.value = String(Math.max(1, maxN));
+            upd();
+          },
+        },
+        t('barracks.max'),
+      );
+      (maxBtn as HTMLButtonElement).disabled = maxN < 1;
       const total = h('div', { class: 'muted' });
       const upd = () => {
         const n = Math.max(0, Math.floor(Number(input.value) || 0));
@@ -136,7 +167,7 @@ export function openBarracksPanel(ctx: PanelCtx): void {
               : h(
                   'div',
                   {},
-                  costEl(u.cost, ch.resources, mods.costRate),
+                  costEl(u.cost, ch.resources, mods.costRate, ch.storageCap),
                   h(
                     'span',
                     { class: 'muted' },
@@ -144,7 +175,16 @@ export function openBarracksPanel(ctx: PanelCtx): void {
                   ),
                 ),
           ),
-          locked ? h('div', { class: 'buy' }) : h('div', { class: 'buy' }, input, total, btn),
+          locked
+            ? h('div', { class: 'buy' })
+            : h(
+                'div',
+                { class: 'buy' },
+                h('div', { class: 'row', style: 'gap:6px' }, input, maxBtn),
+                maxHint,
+                total,
+                btn,
+              ),
         ),
       );
     }

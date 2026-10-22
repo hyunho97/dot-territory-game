@@ -5,7 +5,7 @@ import { guildBonus, researchBonus } from './bonuses.js';
 import { grantRandomEquipment } from './equipmentGrant.js';
 import { addSpeedup } from './speedupGrant.js';
 import { rollExpeditionEvent } from './exploreEvents.js';
-import type { BuildingDef } from '../data.js';
+import type { BuildingDef, NodeType } from '../data.js';
 import { autoSpot, fits, footprintOf, hallRect, landRadius } from './layoutRules.js';
 import type { Rect } from './layoutRules.js';
 
@@ -669,16 +669,14 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function spawnNode(characterId: number, level: number): void {
-  const types = exploration.nodeTypes.filter((n) => n.unlockLevel <= level);
-  const total = types.reduce((s, n) => s + n.weight, 0);
-  let roll = Math.random() * total;
-  const type = types.find((n) => (roll -= n.weight) < 0) ?? types[0];
+/** 탐사 지점 하나를 만든다. band 는 거리 구간(0 가까움, 1 중간, 2 멈): 멀수록 자원이 많다 */
+function spawnNode(characterId: number, level: number, type: NodeType, band: number): void {
+  const bands = exploration.bandAmountMult.length;
   const existing = db
     .prepare('SELECT x, y FROM map_nodes WHERE character_id = ?')
     .all(characterId) as unknown as { x: number; y: number }[];
   for (let i = 0; i < 30; i++) {
-    const dist = type.minDist + Math.random() * (type.maxDist - type.minDist);
+    const dist = type.minDist + ((band + Math.random()) / bands) * (type.maxDist - type.minDist);
     const angle = Math.random() * Math.PI * 2;
     const x = Math.round(Math.cos(angle) * dist);
     const y = Math.round(Math.sin(angle) * dist);
@@ -692,23 +690,37 @@ function spawnNode(characterId: number, level: number): void {
       y,
       Math.round(
         randInt(type.amount[0], type.amount[1]) *
-          (1 + (exploration.amountPerLevel ?? 0) * (level - 1)),
+          (1 + (exploration.amountPerLevel ?? 0) * (level - 1)) *
+          exploration.bandAmountMult[band],
       ),
     );
     return;
   }
 }
 
-export function ensureNodes(characterId: number, level: number): void {
-  const n = (
-    db.prepare('SELECT COUNT(*) AS n FROM map_nodes WHERE character_id = ?').get(characterId) as {
-      n: number;
-    }
-  ).n;
-  for (let i = n; i < exploration.nodeCount; i++) spawnNode(characterId, level);
-}
+const respawnMs = (): number => exploration.respawnMin * 60_000;
+/** 다음 탐사 지점 갱신 시각 */
+export const nextNodeRefresh = (now: number): number =>
+  (Math.floor(now / respawnMs()) + 1) * respawnMs();
 
-export function exploreState(characterId: number) {
+/**
+ * 탐사 지점은 respawnMin(30분)마다 통째로 새로 나온다: 열린 자원마다 가까운/중간/먼 곳에 하나씩.
+ * 자원량과 위치는 매번 무작위이고, 캐 간 지점은 다음 갱신까지 다시 나오지 않는다.
+ */
+export function ensureNodes(characterId: number, level: number, now = Date.now()): void {
+  const bucket = Math.floor(now / respawnMs());
+  const row = db.prepare('SELECT nodes_bucket FROM characters WHERE id = ?').get(characterId) as
+    { nodes_bucket: number | null } | undefined;
+  if (!row || row.nodes_bucket === bucket) return;
+  const types = exploration.nodeTypes.filter((n) => n.unlockLevel <= level);
+  // (캐릭터 생성 트랜잭션 안에서도 불리므로 여기서는 따로 트랜잭션을 열지 않는다)
+  db.prepare('DELETE FROM map_nodes WHERE character_id = ?').run(characterId);
+  for (const type of types)
+    for (let k = 0; k < exploration.perResource; k++)
+      spawnNode(characterId, level, type, k % exploration.bandAmountMult.length);
+  db.prepare('UPDATE characters SET nodes_bucket = ? WHERE id = ?').run(bucket, characterId);
+}
+export function exploreState(characterId: number, cpPerTroop = 0) {
   settle(characterId);
   const ch = db.prepare('SELECT territory_level FROM characters WHERE id = ?').get(characterId) as {
     territory_level: number;
@@ -726,7 +738,11 @@ export function exploreState(characterId: number) {
   return {
     serverNow: o.serverNow,
     tileSec: exploration.tileSec,
-    carryPerUnit: exploration.carryPerUnit,
+    /** 병력 1명당 평균 전투력 × 이 값 = 1명이 캐 오는 양 (전투력에 비례) */
+    cpPerTroop,
+    carryPerCP: exploration.carryPerCP,
+    nextRefreshAt: nextNodeRefresh(o.serverNow),
+    mapRadius: Math.ceil(Math.max(...exploration.nodeTypes.map((n) => n.maxDist))) + 1,
     carryBonus: researchBonus(characterId, 'carry'),
     slots: expeditionSlots(ch.territory_level),
     idleTroops: o.idleTroops,
@@ -735,7 +751,12 @@ export function exploreState(characterId: number) {
   };
 }
 
-export function sendExpedition(characterId: number, nodeId: number, troops: number): void {
+export function sendExpedition(
+  characterId: number,
+  nodeId: number,
+  troops: number,
+  cpPerTroop: number,
+): void {
   settle(characterId);
   const now = Date.now();
   const ch = db
@@ -763,7 +784,8 @@ export function sendExpedition(characterId: number, nodeId: number, troops: numb
     node.remaining,
     Math.floor(
       troops *
-        exploration.carryPerUnit *
+        cpPerTroop *
+        exploration.carryPerCP *
         raceMods(ch.race).resourceGain *
         (1 + researchBonus(characterId, 'carry')),
     ),
@@ -783,8 +805,7 @@ export function sendExpedition(characterId: number, nodeId: number, troops: numb
       now + roundTripMs,
     );
     if (node.remaining - yieldAmount <= 0) {
-      db.prepare('DELETE FROM map_nodes WHERE id = ?').run(node.id);
-      spawnNode(characterId, ch.territory_level);
+      db.prepare('DELETE FROM map_nodes WHERE id = ?').run(node.id); // 다음 갱신 때 새로 나온다
     } else {
       db.prepare('UPDATE map_nodes SET remaining = remaining - ? WHERE id = ?').run(
         yieldAmount,

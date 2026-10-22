@@ -379,7 +379,12 @@ export interface Expedition {
 export interface ExploreState {
   serverNow: number;
   tileSec: number;
-  carryPerUnit: number;
+  /** 병력 1명당 평균 전투력과 전투력 1당 채집량 (채집량은 전투력에 비례) */
+  cpPerTroop: number;
+  carryPerCP: number;
+  /** 다음 탐사 지점 갱신 시각과 지도 반경(칸) */
+  nextRefreshAt: number;
+  mapRadius: number;
   carryBonus: number;
   slots: number;
   idleTroops: number;

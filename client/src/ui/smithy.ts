@@ -138,7 +138,7 @@ export function openSmithyPanel(ctx: PanelCtx): void {
               'div',
               {},
               `${t('buildPanel.cost')}: `,
-              costEl(def.cost, ch.resources, mods.costRate),
+              costEl(def.cost, ch.resources, mods.costRate, ch.storageCap),
               h(
                 'span',
                 { class: 'muted' },
@@ -371,7 +371,7 @@ export function openSmithyPanel(ctx: PanelCtx): void {
                   })
                 : t('equip.enhanceInfo', { from: it.enhance, to: it.enhance + 1, pct }),
               ' · ',
-              costEl(eCost, ctx.getChar().resources, 1),
+              costEl(eCost, ctx.getChar().resources, 1, ctx.getChar().storageCap),
             ),
         it.equipped ? h('span', { class: 'badge mine' }, t('equip.worn')) : null,
       ),

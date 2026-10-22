@@ -101,7 +101,7 @@ export function openResearchPanel(ctx: PanelCtx): void {
                     'div',
                     {},
                     `${t('buildPanel.cost')}: `,
-                    costEl(tech.next.cost, ch.resources, 1),
+                    costEl(tech.next.cost, ch.resources, 1, ch.storageCap),
                     h(
                       'span',
                       { class: 'muted' },

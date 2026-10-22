@@ -527,14 +527,20 @@ export class TerritoryScene extends Phaser.Scene {
       world.setScale(nz);
       clampView();
     };
+    // 창(모달)이 떠 있는 동안에는 그 밑의 영지 화면이 클릭·드래그·휠로 반응하지 않게 한다
+    const modalOpen = (): boolean => !!document.querySelector('.modal-overlay');
+    // 화면 고정 버튼(HUD)인지: 건물 그림의 투명한 부분이 칸 선택을 가로채지 않게 구분한다
+    const isHud = (o: unknown): boolean =>
+      (o as Phaser.GameObjects.Components.ScrollFactor).scrollFactorX === 0;
     let dragged = false;
     let last: { x: number; y: number } | null = null;
     this.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      if (modalOpen()) return;
       dragged = false;
       last = { x: ptr.x, y: ptr.y };
     });
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
-      if (!ptr.isDown || !last) return;
+      if (modalOpen() || !ptr.isDown || !last) return;
       if (!dragged && Math.hypot(ptr.x - ptr.downX, ptr.y - ptr.downY) < 10) return;
       dragged = true;
       world.x += (ptr.x - last.x) / ZOOM;
@@ -542,9 +548,9 @@ export class TerritoryScene extends Phaser.Scene {
       last = { x: ptr.x, y: ptr.y };
       clampView();
     });
-    this.input.on('wheel', (ptr: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) =>
-      zoomAt(ptr.x / ZOOM, ptr.y / ZOOM, dy > 0 ? 0.9 : 1.1),
-    );
+    this.input.on('wheel', (ptr: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
+      if (!modalOpen()) zoomAt(ptr.x / ZOOM, ptr.y / ZOOM, dy > 0 ? 0.9 : 1.1);
+    });
     const toWorld = (ptr: Phaser.Input.Pointer): [number, number] => [
       (ptr.x / ZOOM - world.x) / world.scaleX,
       (ptr.y / ZOOM - world.y) / world.scaleX,
@@ -787,9 +793,14 @@ export class TerritoryScene extends Phaser.Scene {
       tip.setVisible(false);
       overlay.add(tip);
       for (const o of hits) {
-        o.setInteractive({ useHandCursor: true });
+        // 그림은 보이는(불투명) 부분만 눌리게 해서, 건물 옆 빈 칸을 가리지 않는다
+        o.setInteractive(
+          o instanceof Phaser.GameObjects.Image
+            ? { useHandCursor: true, pixelPerfect: true, alphaTolerance: 40 }
+            : { useHandCursor: true },
+        );
         o.on('pointerup', () => {
-          if (dragged || this.placing) return;
+          if (dragged || this.placing || modalOpen()) return;
           if (this.moveMode) {
             // 이동 모드: 지은 건물을 눌러 고른다 (영주관은 못 옮김)
             if (opts.ghost) return;
@@ -874,10 +885,11 @@ export class TerritoryScene extends Phaser.Scene {
       redrawMoveMarks();
     };
     this.input.on('pointermove', (ptr: Phaser.Input.Pointer) => {
-      if (!ptr.isDown) aimAt(ptr);
+      if (!ptr.isDown && !modalOpen()) aimAt(ptr);
     });
     this.input.on('pointerup', (ptr: Phaser.Input.Pointer, over: unknown[]) => {
-      if (dragged || over.length > 0) return;
+      // 건물 그림은 칸 선택을 막지 않는다 (화면 고정 버튼 위에서만 무시)
+      if (dragged || modalOpen() || over.some(isHud)) return;
       if (this.placing) {
         // 새 건물: 누른 칸에 짓는다
         aimAt(ptr);

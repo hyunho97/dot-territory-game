@@ -369,6 +369,10 @@
     "speedTrain": "모집 속도 +{n}%",
     "speedCraft": "제작 속도 +{n}%"
   },
+  "cost": {
+    "short": "부족 {n}",
+    "overCap": "창고 상한 {cap} 초과 — 창고를 키우세요"
+  },
   "explore": {
     "heading": "탐사 — 주변 지역",
     "castle": "내 영지",
@@ -384,7 +388,13 @@
     "active": "진행 중인 탐험",
     "activeNone": "진행 중인 탐험이 없습니다.",
     "item": "{resource} · 병력 {n} · 수확 {y}",
-    "back": "복귀까지 {t}"
+    "back": "복귀까지 {t}",
+    "all": "전체",
+    "want": "찾는 자원",
+    "max": "최대",
+    "perTroop": "병력 1명당 평균 채집 {n} (전투력에 비례)",
+    "refreshIn": "새 탐사 지점까지 {t}",
+    "nodeRow": "거리 {d}칸 · 잔여 {n}"
   },
   "levelUp": {
     "heading": "영지 레벨업",
@@ -420,6 +430,10 @@
     "queueItem": "{unit} ×{n}",
     "ready": "완료까지 {t}",
     "noBarracks": "막사가 필요합니다.",
+    "max": "최대",
+    "maxHint": "최대 {n}명 (병력 여유 {room}, 자원 기준 {res})",
+    "maxFull": "병력이 가득 차 모집할 수 없습니다.",
+    "maxNoRes": "자원이 부족해 모집할 수 없습니다.",
     "logTrainDone": "모집 완료: {unit} ×{amount}"
   },
   "stage": {

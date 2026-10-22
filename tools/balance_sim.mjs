@@ -110,7 +110,7 @@ function exploreIncomePerHour() {
       ((n.amount[0] + n.amount[1]) / 2) * (1 + (expl.amountPerLevel ?? 0) * (st.level - 1));
     const perTrip = Math.min(
       nodeAmt,
-      troops * expl.carryPerUnit * mods.resourceGain * (1 + techBonus('logistics')),
+      troops * expl.carryPerCP * 24 * mods.resourceGain * (1 + techBonus('logistics')),
     );
     inc[n.resource] += ((n.weight / totalW) * expSlots() * perTrip * 60) / cycleMin;
   }

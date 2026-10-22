@@ -2,7 +2,12 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { db } from '../db/db.js';
 import { gameConfig, serversData, staticData } from '../data.js';
-import { GameError, createCharacter, getCharacter } from '../services/characterService.js';
+import {
+  GameError,
+  avgCpPerTroop,
+  createCharacter,
+  getCharacter,
+} from '../services/characterService.js';
 import {
   craftEquipment,
   equipItem,
@@ -335,7 +340,8 @@ export function registerRoutes(app: FastifyInstance): void {
   app.get('/api/explore', async (req) => {
     const userId = requireUser(req);
     const serverId = Number((req.query as { server?: string }).server);
-    return exploreState(characterIdOf(userId, serverId));
+    const cid = characterIdOf(userId, serverId);
+    return exploreState(cid, avgCpPerTroop(cid));
   });
 
   app.post('/api/explore/send', async (req) => {
@@ -346,9 +352,9 @@ export function registerRoutes(app: FastifyInstance): void {
       troops?: number;
     };
     const cid = characterIdOf(userId, Number(server));
-    sendExpedition(cid, Number(nodeId), Number(troops));
+    sendExpedition(cid, Number(nodeId), Number(troops), avgCpPerTroop(cid));
     recordEvent(cid, 'expedition');
-    return exploreState(cid);
+    return exploreState(cid, avgCpPerTroop(cid));
   });
 
   app.get('/api/data/:name', async (req) => {
